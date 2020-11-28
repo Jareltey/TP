@@ -17,7 +17,7 @@ class Sheep():
         self.color = color
 
     def __eq__(self,other):
-        if isinstance(other,Sheep) and self.x == other.x and self.y == other.y:
+        if isinstance(other,Sheep) and self.x == other.x and self.y == other.y and self.size == other.size and self.collided == other.collided:
             return True
 
 class Row():
@@ -57,10 +57,8 @@ class MyApp(App):
         
         
         self.blackSheepImagePaths = self.sheepImagePaths[:5]
-        # print(self.blackSheepImagePaths)
         self.whiteSheepImagePaths = self.sheepImagePaths[5:]
-        # print(self.whiteSheepImagePaths)
-
+        
         self.loadedBlackImages = []
         self.loadedWhiteImages = []
 
@@ -77,7 +75,8 @@ class MyApp(App):
             scaleFactor = 40/width
             self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
             self.loadedWhiteImages.append(self.scaledImage)
-        
+
+
         self.nextBlackSheep = []
         self.nextWhiteSheep = []
 
@@ -85,7 +84,7 @@ class MyApp(App):
         self.activeWhiteSheep = []
 
         self.buttonPositions = []
-        self.rowBounds = []
+        # self.rowBounds = []
         self.createButtons()
         
 
@@ -115,7 +114,7 @@ class MyApp(App):
 
             self.buttonPositions.append((x1Right,y1,x2Right,y2))
 
-            self.rowBounds.append((y1,y2))
+            # self.rowBounds.append((y1,y2))
 
     def distance(self,x1,y1,x2,y2):
 
@@ -140,14 +139,14 @@ class MyApp(App):
                 if i % 2 == 0:
                     size = self.nextBlackSheep.pop(0)
                     blackSheep = Sheep(size,x2+20,cy,i//2,'black')
-                    print(i//2)
                     self.activeBlackSheep.append(blackSheep)
+                    print(blackSheep.size)
 
                 else:
                     size = self.nextWhiteSheep.pop(0)
                     whiteSheep = Sheep(size,x1-20,cy,i//2,'white')
-                    print(i//2)
                     self.activeWhiteSheep.append(whiteSheep)
+                    print(whiteSheep.size)
 
                 
     def timerFired(self):
@@ -155,22 +154,31 @@ class MyApp(App):
         self.generateNextSheep()
         self.moveActiveSheep()
         self.checkCollision()
+        self.addPoints()
 
     
+    def addPoints(self):
+
+        for blackSheep in self.activeBlackSheep:
+
+            if blackSheep.x + 20 >= (self.width - self.sideMargin):
+                self.activeBlackSheep.remove(blackSheep)
+
     def checkCollision(self):
 
         for blackSheep in self.activeBlackSheep:
 
-
             for otherBlackSheep in self.activeBlackSheep:
 
-                if (blackSheep != otherBlackSheep and blackSheep.row == otherBlackSheep.row and 
+                if (blackSheep.row == otherBlackSheep.row and blackSheep.collided == False and
                     otherBlackSheep.collided == True and blackSheep.x+20 >= otherBlackSheep.collisionBound):
 
+                    
                     row = self.rowObjects[blackSheep.row]
                     row.collisionNetPower += blackSheep.size
                     row.collisionTotalPower += blackSheep.size
                     row.collidingSheep.append(blackSheep)
+                    print(row.collisionNetPower)
 
                     speedFactor = row.collisionNetPower/row.collisionTotalPower
                     for sheep in row.collidingSheep:
@@ -184,11 +192,11 @@ class MyApp(App):
                     blackSheep.friendlyCollided = True
                     blackSheep.collided = True
 
-                    print('Black Friendly collided')
 
             for whiteSheep in self.activeWhiteSheep:
 
-                if blackSheep.y == whiteSheep.y and whiteSheep.x - blackSheep.x <= 40:
+                if (blackSheep.y == whiteSheep.y and whiteSheep.x - blackSheep.x <= 40
+                    and blackSheep.collided == False and whiteSheep.collided == False):
                     
                     blackSheep.collided = True
                     whiteSheep.collided = True
@@ -202,32 +210,24 @@ class MyApp(App):
                     row.collisionTotalPower = blackSheep.size + whiteSheep.size
                     row.collidingSheep.append(blackSheep)
                     row.collidingSheep.append(whiteSheep)
+                    
 
                     speedFactor = row.collisionNetPower/row.collisionTotalPower
                     blackSheep.speed = speedFactor*5
                     whiteSheep.speed = -blackSheep.speed
-                        
-
-
-                    # for i in range(len(self.rowBounds)):
-                        
-                    #     if self.rowBounds[i][0] < blackSheep.y < self.rowBounds[i][1]:
-
-                    #         self.rowObjects[i].collision = True
-
-                    #         print(f'Collided on row {i}')
         
         for whiteSheep in self.activeWhiteSheep:
 
             for otherWhiteSheep in self.activeWhiteSheep:
 
-                if (whiteSheep != otherWhiteSheep and whiteSheep.row == otherWhiteSheep.row and 
+                if (whiteSheep.row == otherWhiteSheep.row and whiteSheep.collided == False and
                     otherWhiteSheep.collided == True and whiteSheep.x-20 <= otherWhiteSheep.collisionBound):
 
                     row = self.rowObjects[whiteSheep.row]
                     row.collisionNetPower -= whiteSheep.size
                     row.collisionTotalPower += whiteSheep.size
                     row.collidingSheep.append(whiteSheep)
+                    print(row.collisionNetPower)
 
                     speedFactor = row.collisionNetPower/row.collisionTotalPower
                     for sheep in row.collidingSheep:
@@ -240,8 +240,6 @@ class MyApp(App):
                     
                     whiteSheep.friendlyCollided = True
                     whiteSheep.collided = True
-
-                    print('White friendly collided') 
 
 
 
@@ -258,11 +256,11 @@ class MyApp(App):
     def generateNextSheep(self):
         
         while len(self.nextBlackSheep) < 3:
-            randomSize = random.randint(0,4)
+            randomSize = random.randint(1,5)
             self.nextBlackSheep.append(randomSize)
 
         while len(self.nextWhiteSheep) < 3:
-            randomSize = random.randint(0,4)
+            randomSize = random.randint(1,5)
             self.nextWhiteSheep.append(randomSize)
 
     def drawButtons(self,canvas):
@@ -284,24 +282,24 @@ class MyApp(App):
 
         for i in range(len(self.nextBlackSheep)):
 
-            photoImage = self.getCachedPhotoImage(self.loadedBlackImages[self.nextBlackSheep[i]])
+            photoImage = self.getCachedPhotoImage(self.loadedBlackImages[self.nextBlackSheep[i]-1])
             canvas.create_image(20+i*40, 20, image=photoImage)
 
         for i in range(len(self.nextWhiteSheep)):
 
-            photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]])
-            canvas.create_image(self.width-100+i*40, 20, image=photoImage)
+            photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]-1])
+            canvas.create_image(self.width-20-i*40, 20, image=photoImage)
 
     def drawActiveSheep(self,canvas):
 
         for sheep in self.activeBlackSheep:
 
-            photoImage = self.getCachedPhotoImage(self.loadedBlackImages[sheep.size])
+            photoImage = self.getCachedPhotoImage(self.loadedBlackImages[sheep.size-1])
             canvas.create_image(sheep.x,sheep.y, image=photoImage)
 
         for sheep in self.activeWhiteSheep:
 
-            photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[sheep.size])
+            photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[sheep.size-1])
             canvas.create_image(sheep.x,sheep.y, image=photoImage)
 
     def getCachedPhotoImage(self, image):
