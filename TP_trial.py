@@ -16,6 +16,8 @@ class Sheep():
         self.transposed = transposed
         self.speed = 5
         self.color = color
+        self.width = None
+        self.height = None
 
 class Row():
 
@@ -49,6 +51,7 @@ class MyApp(App):
         self.sideMargin = 50
         self.colWidth = (self.width-2*self.sideMargin)/self.cols
         self.rowHeight = (self.height-self.topMargin-self.bottomMargin)/self.rows
+        self.paused = False
 
         self.rowObjects = []
         
@@ -82,7 +85,9 @@ class MyApp(App):
             width, height = self.tempImage.size
             scaleFactor = 40/width
             self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
+            # print(self.scaledImage.size)
             self.transposedImage = self.scaledImage.transpose(Image.ROTATE_270)
+            # print(self.transposedImage.size)
             self.loadedBlackImages.append(self.scaledImage)
             self.loadedTransposedBlackImages.append(self.transposedImage)
 
@@ -127,11 +132,9 @@ class MyApp(App):
             
             x2Left = self.sideMargin - 10
             x1Left = x2Left - rowHeight
-            print(x2Left-x1Left)
             
             y1 = self.topMargin + row*rowHeight
             y2 = y1 + rowHeight
-            print(y2-y1)
 
             self.vertButtonPositions.append((x1Left,y1,x2Left,y2))
 
@@ -171,6 +174,9 @@ class MyApp(App):
 
     def keyPressed(self,event):
 
+        if event.key == 'p':
+            self.paused = True
+
         if not self.blackPlayer.win and not self.whitePlayer.win:
 
             try:
@@ -196,7 +202,7 @@ class MyApp(App):
 
     def mousePressed(self,event):
         
-        if not self.blackPlayer.win and not self.whitePlayer.win:
+        if not self.blackPlayer.win and not self.whitePlayer.win and not self.paused:
 
             x,y = event.x,event.y
             
@@ -277,7 +283,7 @@ class MyApp(App):
 
     def timerFired(self):
         
-        if not self.blackPlayer.win and not self.whitePlayer.win:
+        if not self.blackPlayer.win and not self.whitePlayer.win and not self.paused:
 
             self.generateNextSheep()
             self.moveActiveSheep()
@@ -475,7 +481,26 @@ class MyApp(App):
 
             for whiteSheep in self.activeWhiteSheep:
 
-                if (blackSheep.row == whiteSheep.row != None and whiteSheep.x - blackSheep.x <= 40
+                if (blackSheep.col == whiteSheep.col != None and whiteSheep.y - blackSheep.y <= 40
+                    and blackSheep.collided == False and whiteSheep.collided == False):
+                    
+                    blackSheep.collided = True
+                    whiteSheep.collided = True
+
+                    col = self.colObjects[blackSheep.col]
+                    col.collision = True
+                    col.collisionNetPower = blackSheep.size - whiteSheep.size
+                    # print(row.collisionNetPower)
+                    col.collisionTotalPower = blackSheep.size + whiteSheep.size
+                    col.collidingSheep.append(blackSheep)
+                    col.collidingSheep.append(whiteSheep)
+                    
+
+                    speedFactor = col.collisionNetPower/col.collisionTotalPower
+                    blackSheep.speed = speedFactor*5
+                    whiteSheep.speed = -blackSheep.speed
+
+                elif (blackSheep.row == whiteSheep.row != None and whiteSheep.x - blackSheep.x <= 40
                     and blackSheep.collided == False and whiteSheep.collided == False):
                     
                     blackSheep.collided = True
@@ -494,24 +519,24 @@ class MyApp(App):
                     blackSheep.speed = speedFactor*5
                     whiteSheep.speed = -blackSheep.speed
 
-                elif (blackSheep.col == whiteSheep.col != None and whiteSheep.y - blackSheep.y <= 40
-                    and blackSheep.collided == False and whiteSheep.collided == False):
-                    
-                    blackSheep.collided = True
-                    whiteSheep.collided = True
+                elif blackSheep.width != None and whiteSheep.width != None and blackSheep.collided == False and whiteSheep.collided == False:
 
-                    col = self.colObjects[blackSheep.col]
-                    col.collision = True
-                    col.collisionNetPower = blackSheep.size - whiteSheep.size
-                    # print(row.collisionNetPower)
-                    col.collisionTotalPower = blackSheep.size + whiteSheep.size
-                    col.collidingSheep.append(blackSheep)
-                    col.collidingSheep.append(whiteSheep)
-                    
+                    if (blackSheep.x - blackSheep.width/2 - whiteSheep.width <= whiteSheep.x - whiteSheep.width/2 <= blackSheep.x + blackSheep.width/2
+                    and blackSheep.y - blackSheep.height/2 - whiteSheep.height <= whiteSheep.y - whiteSheep.height/2 <= blackSheep.y + blackSheep.height/2):
+                        print("cross collision")
 
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
-                    blackSheep.speed = speedFactor*5
-                    whiteSheep.speed = -blackSheep.speed
+                        if whiteSheep.col != None:
+                        
+                            self.activeWhiteSheep.remove(whiteSheep)
+                            movedWhiteSheep = Sheep(whiteSheep.size,blackSheep.x+40,blackSheep.y,'white',False,blackSheep.row,None)
+                            self.activeWhiteSheep.append(movedWhiteSheep)
+
+                        elif blackSheep.col != None:
+
+                            self.activeBlackSheep.remove(blackSheep)
+                            movedBlackSheep = Sheep(blackSheep.size,whiteSheep.x-40,whiteSheep.y,'black',False,whiteSheep.row,None)
+                            self.activeBlackSheep.append(movedBlackSheep)
+
         
         for whiteSheep in self.activeWhiteSheep:
 
@@ -626,23 +651,37 @@ class MyApp(App):
             photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]-1])
             canvas.create_image(self.width-20-i*40, 40, image=photoImage)
 
+    def getWidthAndHeight(self,sheep,image):
+
+        width, height = image.size
+        sheep.width = width
+        sheep.height = height
+
     def drawActiveSheep(self,canvas):
 
         for sheep in self.activeBlackSheep:
 
             if sheep.transposed == False:
+                image = self.loadedBlackImages[sheep.size-1]
+                self.getWidthAndHeight(sheep,image)
                 photoImage = self.getCachedPhotoImage(self.loadedBlackImages[sheep.size-1])
                 canvas.create_image(sheep.x,sheep.y, image=photoImage)
             else:
+                image = self.loadedTransposedBlackImages[sheep.size-1]
+                self.getWidthAndHeight(sheep,image)
                 photoImage = self.getCachedPhotoImage(self.loadedTransposedBlackImages[sheep.size-1])
                 canvas.create_image(sheep.x,sheep.y, image=photoImage)
 
         for sheep in self.activeWhiteSheep:
 
             if sheep.transposed == False:
+                image = self.loadedWhiteImages[sheep.size-1]
+                self.getWidthAndHeight(sheep,image)
                 photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[sheep.size-1])
                 canvas.create_image(sheep.x,sheep.y, image=photoImage)
             else:
+                image = self.loadedTransposedWhiteImages[sheep.size-1]
+                self.getWidthAndHeight(sheep,image)
                 photoImage = self.getCachedPhotoImage(self.loadedTransposedWhiteImages[sheep.size-1])
                 canvas.create_image(sheep.x,sheep.y, image=photoImage)
 
@@ -660,7 +699,7 @@ class MyApp(App):
 
     def drawTimers(self,canvas):
 
-        if not self.blackPlayer.win or self.whitePlayer.win:
+        if not self.blackPlayer.win or self.whitePlayer.win and not self.paused:
 
             if self.blackCurrTime == None:
                 canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
