@@ -126,31 +126,27 @@ class MyApp(App):
 
     def keyPressed(self,event):
 
-        try:
-            if self.blackCurrTime == None or (self.blackCurrTime + 3) <= time.time():
-                self.blackSheepReady = True
-            else:
-                self.blackSheepReady = False
+        if not self.blackPlayer.win and not self.whitePlayer.win:
 
-            row = self.rowObjects[int(event.key)-1]
-            for sheep in row.collidingSheep:
-                if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
-                    self.blackSheepReady = False
-            
-            if self.blackSheepReady:
-                rowToSend = int(event.key)
-                if 1 <= rowToSend <= 5:
-                    size = self.nextBlackSheep.pop(0)
-                    x = self.sideMargin + 20
-                    y = self.getRowCy(rowToSend)
-                    blackSheep = Sheep(size,x,y,rowToSend,'black')
-                    self.activeBlackSheep.append(blackSheep)
-                    self.blackCurrTime = time.time()
-                else:
-                    print(f'Press a number from 1 to {self.rows}')
+            try:
+                
+                row = self.rowObjects[int(event.key)-1]
+                self.checkSheepReady(row)
+                
+                if self.blackSheepReady:
+                    rowToSend = int(event.key)
+                    if 1 <= rowToSend <= 5:
+                        size = self.nextBlackSheep.pop(0)
+                        x = self.sideMargin + 20
+                        y = self.getRowCy(rowToSend)
+                        blackSheep = Sheep(size,x,y,rowToSend,'black')
+                        self.activeBlackSheep.append(blackSheep)
+                        self.blackCurrTime = time.time()
+                    else:
+                        print(f'Press a number from 1 to {self.rows}')
 
-        except:
-            print(f'Press a number from 1 to {self.rows}')
+            except:
+                print(f'Press a number from 1 to {self.rows}')
             
 
     def mousePressed(self,event):
@@ -158,15 +154,6 @@ class MyApp(App):
         if not self.blackPlayer.win and not self.whitePlayer.win:
 
             x,y = event.x,event.y
-
-            if self.blackCurrTime == None or (self.blackCurrTime + 3) <= time.time():
-                self.blackSheepReady = True
-            else:
-                self.blackSheepReady = False
-            if self.whiteCurrTime == None or (self.whiteCurrTime + 3) <= time.time():
-                self.whiteSheepReady = True
-            else:
-                self.whiteSheepReady = False
             
             for i in range(len(self.buttonPositions)):
                 
@@ -177,11 +164,7 @@ class MyApp(App):
                 if self.distance(x,y,cx,cy) <= self.sideMargin/2:
                     
                     row = self.rowObjects[i//2]
-                    for sheep in row.collidingSheep:
-                        if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
-                            self.blackSheepReady = False
-                        elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
-                            self.whiteSheepReady = False
+                    self.checkSheepReady(row)
 
                     if i % 2 == 0 and self.blackSheepReady:
                         size = self.nextBlackSheep.pop(0)
@@ -197,14 +180,33 @@ class MyApp(App):
                         self.whiteCurrTime = time.time()
                         # print(whiteSheep.size)
 
-                
+
+    def checkSheepReady(self,row):
+
+        if self.blackCurrTime == None or (self.blackCurrTime + 3) <= time.time():
+            self.blackSheepReady = True
+        else:
+            self.blackSheepReady = False
+        if self.whiteCurrTime == None or (self.whiteCurrTime + 3) <= time.time():
+            self.whiteSheepReady = True
+        else:
+            self.whiteSheepReady = False
+
+        for sheep in row.collidingSheep:
+            if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
+                self.blackSheepReady = False
+            elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
+                self.whiteSheepReady = False
+
     def timerFired(self):
         
-        self.generateNextSheep()
-        self.moveActiveSheep()
-        self.checkCollision()
-        self.addPoints()
-        self.checkWin()
+        if not self.blackPlayer.win and not self.whitePlayer.win:
+
+            self.generateNextSheep()
+            self.moveActiveSheep()
+            self.checkCollision()
+            self.addPoints()
+            self.checkWin()
 
     
     def addPoints(self):
@@ -353,8 +355,6 @@ class MyApp(App):
 
     def moveActiveSheep(self):
 
-        if not self.blackPlayer.win and not self.whitePlayer.win:
-
             for sheep in self.activeBlackSheep:
 
                 sheep.x += sheep.speed
@@ -375,11 +375,18 @@ class MyApp(App):
 
     def checkWin(self):
 
-        if self.blackPlayer.score >= 50:
+        if self.blackPlayer.score >= 3:
             self.blackPlayer.win = True
 
-        elif self.whitePlayer.score >= 50:
+        elif self.whitePlayer.score >= 3:
             self.whitePlayer.win = True
+
+    def drawWin(self,canvas):
+
+        if self.blackPlayer.win:
+            canvas.create_text(150,150,text='Black wins!!!')
+        else:
+            canvas.create_text(150,150,text='White wins!!!')
 
     def drawButtons(self,canvas):
 
@@ -434,39 +441,41 @@ class MyApp(App):
 
     def drawTimers(self,canvas):
 
-        if self.blackCurrTime == None:
-            canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(80,70,120,110,extent=120,start=90,fill='green')
-            canvas.create_arc(80,70,120,110,extent=120,start=210,fill='green')
+        if not self.blackPlayer.win or self.whitePlayer.win:
 
-        elif self.blackCurrTime + 3 <= time.time():
-            canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(80,70,120,110,extent=120,start=-150,fill='green')
-            canvas.create_arc(80,70,120,110,extent=120,start=-270,fill='green')
+            if self.blackCurrTime == None:
+                canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(80,70,120,110,extent=120,start=90,fill='green')
+                canvas.create_arc(80,70,120,110,extent=120,start=210,fill='green')
 
-        elif self.blackCurrTime + 2 <= time.time():
-            canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(80,70,120,110,extent=120,start=-150,fill='green')
-        
-        elif self.blackCurrTime + 1 <= time.time():
-            canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
+            elif self.blackCurrTime + 3 <= time.time():
+                canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(80,70,120,110,extent=120,start=-150,fill='green')
+                canvas.create_arc(80,70,120,110,extent=120,start=-270,fill='green')
 
-        if self.whiteCurrTime == None:
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=90,fill='green')
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=210,fill='green')
+            elif self.blackCurrTime + 2 <= time.time():
+                canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(80,70,120,110,extent=120,start=-150,fill='green')
+            
+            elif self.blackCurrTime + 1 <= time.time():
+                canvas.create_arc(80,70,120,110,extent=120,start=-30,fill='green')
 
-        elif self.whiteCurrTime + 3 <= time.time():
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-150,fill='green')
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-270,fill='green')
+            if self.whiteCurrTime == None:
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=90,fill='green')
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=210,fill='green')
 
-        elif self.whiteCurrTime + 2 <= time.time():
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-150,fill='green')
-        
-        elif self.whiteCurrTime + 1 <= time.time():
-            canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
+            elif self.whiteCurrTime + 3 <= time.time():
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-150,fill='green')
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-270,fill='green')
+
+            elif self.whiteCurrTime + 2 <= time.time():
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-150,fill='green')
+            
+            elif self.whiteCurrTime + 1 <= time.time():
+                canvas.create_arc(self.width-120,70,self.width-80,110,extent=120,start=-30,fill='green')
 
     def redrawAll(self,canvas):
         self.drawGrid(canvas)
@@ -475,6 +484,8 @@ class MyApp(App):
         self.drawActiveSheep(canvas)
         self.drawScore(canvas)
         self.drawTimers(canvas)
+        if self.blackPlayer.win or self.whitePlayer.win:
+            self.drawWin(canvas)
 
 
 
