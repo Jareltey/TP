@@ -22,14 +22,12 @@ class Sheep():
 class Row():
 
     def __init__(self):
-        self.collision = False
-        self.collidingSheep = []
+        self.collisions = []
 
 class Col():
 
     def __init__(self):
-        self.collision = False
-        self.collidingSheep = []
+        self.collisions = []
 
 class Player():
 
@@ -37,15 +35,19 @@ class Player():
         self.score = 0
         self.win = False
 
+class Bump():
+
+    def __init__(self):
+        self.collidingSheep = []
+
 # Main class
 
 class MyApp(App):
 
-
     def appStarted(self):
 
-        self.rows = 10
-        self.cols = 10
+        self.rows = 9
+        self.cols = 9
         self.topMargin = 120
         self.bottomMargin = 60
         self.sideMargin = 50
@@ -85,9 +87,7 @@ class MyApp(App):
             width, height = self.tempImage.size
             scaleFactor = 40/width
             self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
-            # print(self.scaledImage.size)
             self.transposedImage = self.scaledImage.transpose(Image.ROTATE_270)
-            # print(self.transposedImage.size)
             self.loadedBlackImages.append(self.scaledImage)
             self.loadedTransposedBlackImages.append(self.transposedImage)
 
@@ -115,6 +115,8 @@ class MyApp(App):
 
         self.blackCurrTime = None
         self.whiteCurrTime = None
+        self.blackTimePassed = 0
+        self.whiteTimePassed = 0
 
     def getCellBounds(self,row,col):
 
@@ -175,9 +177,14 @@ class MyApp(App):
     def keyPressed(self,event):
 
         if event.key == 'p':
-            self.paused = True
+            self.paused = not self.paused
+            if self.paused:
+                self.pausedTime = time.time()
+            else:
+                self.blackTimePassed += (time.time() - self.pausedTime)
+                self.whiteTimePassed += (time.time() - self.pausedTime)
 
-        if not self.blackPlayer.win and not self.whitePlayer.win:
+        elif not self.blackPlayer.win and not self.whitePlayer.win:
 
             try:
                 
@@ -186,13 +193,16 @@ class MyApp(App):
                 
                 if self.blackSheepReady:
                     rowToSend = int(event.key)
-                    if 1 <= rowToSend <= 5:
+                    if 1 <= rowToSend <= 9:
                         size = self.nextBlackSheep.pop(0)
                         x = self.sideMargin + 20
                         y = self.getRowCy(rowToSend)
-                        blackSheep = Sheep(size,x,y,rowToSend,'black')
+                        blackSheep = Sheep(size,x,y,'black',False,rowToSend-1,None)
+                        print(blackSheep.row)
+                        print(blackSheep.collided)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
+                        self.blacktimePassed = 0
                     else:
                         print(f'Press a number from 1 to {self.rows}')
 
@@ -222,14 +232,14 @@ class MyApp(App):
                         blackSheep = Sheep(size,self.sideMargin+20,cy,'black',False,i//2,None)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
-                        # print(blackSheep.size)
+                        self.blackTimePassed = 0
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
                         whiteSheep = Sheep(size,self.width-self.sideMargin-20,cy,'white',False,i//2,None)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
-                        # print(whiteSheep.size)
+                        self.whiteTimePassed = 0
 
             for i in range(len(self.horizButtonPositions)):
                 
@@ -247,39 +257,43 @@ class MyApp(App):
                         blackSheep = Sheep(size,cx,self.topMargin+20,'black',True,None,i//2)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
-                        # print(blackSheep.size)
+                        self.blackTimePassed = 0
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
                         whiteSheep = Sheep(size,cx,self.width-self.bottomMargin-20,'white',True,None,i//2)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
-                        # print(whiteSheep.size)
+                        self.whiteTimePassed = 0
+
 
     def checkSheepReady(self,rowOrCol):
 
-        if self.blackCurrTime == None or (self.blackCurrTime + 3) <= time.time():
+        if self.blackCurrTime == None or (self.blackCurrTime + self.blackTimePassed + 3) <= time.time():
             self.blackSheepReady = True
         else:
             self.blackSheepReady = False
-        if self.whiteCurrTime == None or (self.whiteCurrTime + 3) <= time.time():
+        if self.whiteCurrTime == None or (self.whiteCurrTime + self.whiteTimePassed + 3) <= time.time():
             self.whiteSheepReady = True
         else:
             self.whiteSheepReady = False
 
         if rowOrCol in self.rowObjects:
-            for sheep in rowOrCol.collidingSheep:
-                if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
-                    self.blackSheepReady = False
-                elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
-                    self.whiteSheepReady = False
+            for bump in rowOrCol.collisions:
+                for sheep in bump.collidingSheep:
+                    if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
+                        self.blackSheepReady = False
+                    elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
+                        self.whiteSheepReady = False
 
         elif rowOrCol in self.colObjects:
-            for sheep in rowOrCol.collidingSheep:
-                if sheep.collided == True and sheep.color == 'black' and sheep.y - 20 <= self.topMargin:
-                    self.blackSheepReady = False
-                elif sheep.collided == True and sheep.color == 'white' and sheep.y + 20 >= self.width - self.bottomMargin:
-                    self.whiteSheepReady = False
+            for bump in rowOrCol.collisions:
+                for sheep in bump.collidingSheep:
+                    if sheep.collided == True and sheep.color == 'black' and sheep.y - 20 <= self.topMargin:
+                        self.blackSheepReady = False
+                    elif sheep.collided == True and sheep.color == 'white' and sheep.y + 20 >= self.width - self.bottomMargin:
+                        self.whiteSheepReady = False
+
 
     def timerFired(self):
         
@@ -291,78 +305,119 @@ class MyApp(App):
             self.addPoints()
             self.checkWin()
 
-    
+
     def addPoints(self):
 
         for blackSheep in self.activeBlackSheep:
 
             if blackSheep.x + 20 >= (self.width - self.sideMargin) and blackSheep.row != None:
-                
-                if blackSheep.collided == True:
-                
-                    row = self.rowObjects[blackSheep.row]
-                    row.collisionNetPower -= blackSheep.size
-                    row.collisionTotalPower -= blackSheep.size
-                    row.collidingSheep.remove(blackSheep)
-                    # print(row.collisionNetPower)
-                    self.activeBlackSheep.remove(blackSheep)
-                    self.blackPlayer.score += blackSheep.points
 
+                if blackSheep.collided == True:
+
+                    #make whiteSheep.collided = False
+                    row = self.rowObjects[blackSheep.row]
+                    for bump in row.collisions:
+                        if blackSheep in bump.collidingSheep:
+                            bump.collisionNetPower -= blackSheep.size
+                            bump.collisionTotalPower -= blackSheep.size
+                            bump.collidingSheep.remove(blackSheep)
+                            self.activeBlackSheep.remove(blackSheep)
+                            self.blackPlayer.score += blackSheep.points
+
+                    if bump.collisionTotalPower != 0:
+                        speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                        for sheep in bump.collidingSheep:
+                            if sheep.color == 'black':
+                                sheep.speed = speedFactor*5
+                            else:
+                                sheep.speed = -speedFactor*5
+            
                 else:
 
                     self.activeBlackSheep.remove(blackSheep)
                     self.blackPlayer.score += blackSheep.points
             
-            elif blackSheep.x + 20 <= self.sideMargin and blackSheep.row != None:
+            elif blackSheep.x - 20 < self.sideMargin and blackSheep.row != None:
 
                 row = self.rowObjects[blackSheep.row]
-                row.collisionNetPower -= blackSheep.size
-                # print(row.collisionNetPower)
-                row.collisionTotalPower -= blackSheep.size
-                row.collidingSheep.remove(blackSheep)
-                self.activeBlackSheep.remove(blackSheep)
+                for bump in row.collisions:
+                    if blackSheep in bump.collidingSheep:
+                        bump.collisionNetPower -= blackSheep.size
+                        bump.collisionTotalPower -= blackSheep.size
+                        bump.collidingSheep.remove(blackSheep)
+                        self.activeBlackSheep.remove(blackSheep)
+                        self.blackPlayer.score += blackSheep.points
 
-                if row.collisionTotalPower != 0:
-                    speedFactor = row.collisionNetPower/row.collisionTotalPower
-                    for sheep in row.collidingSheep:
+                if bump.collisionTotalPower != 0:
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                    for sheep in bump.collidingSheep:
                         if sheep.color == 'black':
                             sheep.speed = speedFactor*5
                         else:
                             sheep.speed = -speedFactor*5
+
+                bump.doneColliding = True
+                for sheep in bump.collidingSheep:
+                    if sheep.color == 'black':
+                        bump.doneColliding = False
+                
+                print(bump.doneColliding)
+                if bump.doneColliding:
+                    for whiteSheep in bump.collidingSheep:
+                        whiteSheep.collided = False
             
             elif blackSheep.y + 20 >= (self.width - self.bottomMargin) and blackSheep.col != None:
                 
                 if blackSheep.collided == True:
-                
-                    col = self.colObjects[blackSheep.col]
-                    col.collisionNetPower -= blackSheep.size
-                    col.collisionTotalPower -= blackSheep.size
-                    col.collidingSheep.remove(blackSheep)
-                    # print(col.collisionNetPower)
-                    self.activeBlackSheep.remove(blackSheep)
-                    self.blackPlayer.score += blackSheep.points
 
+                    col = self.colObjects[blackSheep.col]
+                    for bump in col.collisions:
+                        if blackSheep in bump.collidingSheep:
+                            bump.collisionNetPower -= blackSheep.size
+                            bump.collisionTotalPower -= blackSheep.size
+                            bump.collidingSheep.remove(blackSheep)
+                            self.activeBlackSheep.remove(blackSheep)
+
+                    if bump.collisionTotalPower != 0:
+                        speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                        for sheep in bump.collidingSheep:
+                            if sheep.color == 'black':
+                                sheep.speed = speedFactor*5
+                            else:
+                                sheep.speed = -speedFactor*5
+            
                 else:
 
                     self.activeBlackSheep.remove(blackSheep)
                     self.blackPlayer.score += blackSheep.points
 
-            elif blackSheep.y + 20 <= self.topMargin and blackSheep.col != None:
+            elif blackSheep.y - 20 < self.topMargin and blackSheep.col != None:
 
                 col = self.colObjects[blackSheep.col]
-                col.collisionNetPower -= blackSheep.size
-                # print(col.collisionNetPower)
-                col.collisionTotalPower -= blackSheep.size
-                col.collidingSheep.remove(blackSheep)
-                self.activeBlackSheep.remove(blackSheep)
+                for bump in col.collisions:
+                    if blackSheep in bump.collidingSheep:
+                        bump.collisionNetPower -= blackSheep.size
+                        bump.collisionTotalPower -= blackSheep.size
+                        bump.collidingSheep.remove(blackSheep)
+                        self.activeBlackSheep.remove(blackSheep)
 
-                if col.collisionTotalPower != 0:
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
-                    for sheep in col.collidingSheep:
+                if bump.collisionTotalPower != 0:
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                    for sheep in bump.collidingSheep:
                         if sheep.color == 'black':
                             sheep.speed = speedFactor*5
                         else:
                             sheep.speed = -speedFactor*5
+                
+                bump.doneColliding = True
+                for sheep in bump.collidingSheep:
+                    if sheep.color == 'black':
+                        bump.doneColliding = False
+                
+                print(bump.doneColliding)
+                if bump.doneColliding:
+                    for whiteSheep in bump.collidingSheep:
+                        whiteSheep.collided = False
 
         for whiteSheep in self.activeWhiteSheep:
 
@@ -371,68 +426,109 @@ class MyApp(App):
                 if whiteSheep.collided == True:
 
                     row = self.rowObjects[whiteSheep.row]
-                    row.collisionNetPower += whiteSheep.size
-                    row.collisionTotalPower -= whiteSheep.size
-                    # print(row.collisionNetPower)
-                    row.collidingSheep.remove(whiteSheep)
-                    self.activeWhiteSheep.remove(whiteSheep)
-                    self.whitePlayer.score += whiteSheep.points
+                    for bump in row.collisions:
+                        if whiteSheep in bump.collidingSheep:
+                            bump.collisionNetPower += whiteSheep.size
+                            bump.collisionTotalPower -= whiteSheep.size
+                            bump.collidingSheep.remove(whiteSheep)
+                            self.activeWhiteSheep.remove(whiteSheep)
+                            self.whitePlayer.score += whiteSheep.points
+
+                    if bump.collisionTotalPower != 0:
+                        speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                        for sheep in bump.collidingSheep:
+                            if sheep.color == 'black':
+                                sheep.speed = speedFactor*5
+                            else:
+                                sheep.speed = -speedFactor*5
             
                 else:
 
                     self.activeWhiteSheep.remove(whiteSheep)
                     self.whitePlayer.score += whiteSheep.points
 
-            elif whiteSheep.x - 20 >= (self.width - self.sideMargin) and whiteSheep.row != None:
+            elif whiteSheep.x + 20 > (self.width - self.sideMargin) and whiteSheep.row != None:
 
                 row = self.rowObjects[whiteSheep.row]
-                row.collisionNetPower += whiteSheep.size
-                # print(row.collisionNetPower)
-                row.collisionTotalPower -= whiteSheep.size
-                row.collidingSheep.remove(whiteSheep)
-                self.activeWhiteSheep.remove(whiteSheep)
+                for bump in row.collisions:
+                    if whiteSheep in bump.collidingSheep:
+                        bump.collisionNetPower += whiteSheep.size
+                        bump.collisionTotalPower -= whiteSheep.size
+                        bump.collidingSheep.remove(whiteSheep)
+                        self.activeWhiteSheep.remove(whiteSheep)
 
-                if row.collisionTotalPower != 0:
-                    speedFactor = row.collisionNetPower/row.collisionTotalPower
-                    for sheep in row.collidingSheep:
+                if bump.collisionTotalPower != 0:
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                    for sheep in bump.collidingSheep:
                         if sheep.color == 'black':
                             sheep.speed = speedFactor*5
                         else:
                             sheep.speed = -speedFactor*5
+
+                bump.doneColliding = True
+                for sheep in bump.collidingSheep:
+                    if sheep.color == 'white':
+                        bump.doneColliding = False
+                
+                print(bump.doneColliding)
+                if bump.doneColliding:
+                    for blackSheep in bump.collidingSheep:
+                        blackSheep.collided = False
 
             elif whiteSheep.y - 20 <= self.topMargin and whiteSheep.col != None:
 
                 if whiteSheep.collided == True:
-
+                    
                     col = self.colObjects[whiteSheep.col]
-                    col.collisionNetPower += whiteSheep.size
-                    col.collisionTotalPower -= whiteSheep.size
-                    # print(col.collisionNetPower)
-                    col.collidingSheep.remove(whiteSheep)
-                    self.activeWhiteSheep.remove(whiteSheep)
-                    self.whitePlayer.score += whiteSheep.points
+                    for bump in col.collisions:
+                        if whiteSheep in bump.collidingSheep:
+                            bump.collisionNetPower += whiteSheep.size
+                            bump.collisionTotalPower -= whiteSheep.size
+                            bump.collidingSheep.remove(whiteSheep)
+                            self.activeWhiteSheep.remove(whiteSheep)
+                            self.whitePlayer.score += whiteSheep.points
+
+                    if bump.collisionTotalPower != 0:
+                        speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                        for sheep in bump.collidingSheep:
+                            if sheep.color == 'black':
+                                sheep.speed = speedFactor*5
+                            else:
+                                sheep.speed = -speedFactor*5
             
                 else:
 
                     self.activeWhiteSheep.remove(whiteSheep)
                     self.whitePlayer.score += whiteSheep.points
 
-            elif whiteSheep.y - 20 >= (self.height - self.bottomMargin) and whiteSheep.col != None:
+            elif whiteSheep.y + 20 > (self.height - self.bottomMargin) and whiteSheep.col != None:
 
                 col = self.colObjects[whiteSheep.col]
-                col.collisionNetPower += whiteSheep.size
-                # print(col.collisionNetPower)
-                col.collisionTotalPower -= whiteSheep.size
-                col.collidingSheep.remove(whiteSheep)
-                self.activeWhiteSheep.remove(whiteSheep)
+                for bump in col.collisions:
+                    if whiteSheep in bump.collidingSheep:
+                        bump.collisionNetPower += whiteSheep.size
+                        bump.collisionTotalPower -= whiteSheep.size
+                        bump.collidingSheep.remove(whiteSheep)
+                        self.activeWhiteSheep.remove(whiteSheep)
 
-                if col.collisionTotalPower != 0:
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
-                    for sheep in col.collidingSheep:
+                if bump.collisionTotalPower != 0:
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                    for sheep in bump.collidingSheep:
                         if sheep.color == 'black':
                             sheep.speed = speedFactor*5
                         else:
                             sheep.speed = -speedFactor*5
+
+                bump.doneColliding = True
+                for sheep in bump.collidingSheep:
+                    if sheep.color == 'white':
+                        bump.doneColliding = False
+                
+                print(bump.doneColliding)
+                if bump.doneColliding:
+                    for blackSheep in bump.collidingSheep:
+                        blackSheep.collided = False
+
 
     def checkCollision(self):
 
@@ -441,45 +537,45 @@ class MyApp(App):
             for otherBlackSheep in self.activeBlackSheep:
 
                 if (blackSheep.row == otherBlackSheep.row != None and blackSheep.collided == False and
-                    otherBlackSheep.collided == True and blackSheep.x+20 >= otherBlackSheep.x-20):
+                    otherBlackSheep.collided == True and blackSheep.x+20 >= otherBlackSheep.x-20 and blackSheep.x < otherBlackSheep.x):
 
-                    
                     row = self.rowObjects[blackSheep.row]
-                    row.collisionNetPower += blackSheep.size
-                    row.collisionTotalPower += blackSheep.size
-                    row.collidingSheep.append(blackSheep)
-                    # print(row.collisionNetPower)
+                    for bump in row.collisions:
+                        if otherBlackSheep in bump.collidingSheep:
+                            bump.collisionNetPower += blackSheep.size
+                            bump.collisionTotalPower += blackSheep.size
+                            bump.collidingSheep.append(blackSheep)
 
-                    speedFactor = row.collisionNetPower/row.collisionTotalPower
-                    for sheep in row.collidingSheep:
-                        if sheep.color == 'black':
-                            sheep.speed = speedFactor*5
-                        else:
-                            sheep.speed = -speedFactor*5
+                            speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                            for sheep in bump.collidingSheep:
+                                if sheep.color == 'black':
+                                    sheep.speed = speedFactor*5
+                                else:
+                                    sheep.speed = -speedFactor*5
 
                     blackSheep.collided = True
 
                 elif (blackSheep.col == otherBlackSheep.col != None and blackSheep.collided == False and
                     otherBlackSheep.collided == True and blackSheep.y+20 >= otherBlackSheep.y-20):
 
-                    
                     col = self.colObjects[blackSheep.col]
-                    col.collisionNetPower += blackSheep.size
-                    col.collisionTotalPower += blackSheep.size
-                    col.collidingSheep.append(blackSheep)
-                    # print(col.collisionNetPower)
+                    for bump in col.collisions:
+                        if otherBlackSheep in bump.collidingSheep:
+                            bump.collisionNetPower += blackSheep.size
+                            bump.collisionTotalPower += blackSheep.size
+                            bump.collidingSheep.append(blackSheep)
 
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
-                    for sheep in col.collidingSheep:
-                        if sheep.color == 'black':
-                            sheep.speed = speedFactor*5
-                        else:
-                            sheep.speed = -speedFactor*5
+                            speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                            for sheep in bump.collidingSheep:
+                                if sheep.color == 'black':
+                                    sheep.speed = speedFactor*5
+                                else:
+                                    sheep.speed = -speedFactor*5
 
                     blackSheep.collided = True
 
-
             for whiteSheep in self.activeWhiteSheep:
+
 
                 if (blackSheep.col == whiteSheep.col != None and whiteSheep.y - blackSheep.y <= 40
                     and blackSheep.collided == False and whiteSheep.collided == False):
@@ -487,39 +583,41 @@ class MyApp(App):
                     blackSheep.collided = True
                     whiteSheep.collided = True
 
-                    col = self.colObjects[blackSheep.col]
-                    col.collision = True
-                    col.collisionNetPower = blackSheep.size - whiteSheep.size
-                    # print(row.collisionNetPower)
-                    col.collisionTotalPower = blackSheep.size + whiteSheep.size
-                    col.collidingSheep.append(blackSheep)
-                    col.collidingSheep.append(whiteSheep)
-                    
+                    bump = Bump()
+                    bump.collidingSheep.append(blackSheep)
+                    bump.collidingSheep.append(whiteSheep)
 
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
+                    bump.collisionNetPower = blackSheep.size - whiteSheep.size
+                    bump.collisionTotalPower = blackSheep.size + whiteSheep.size
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
                     blackSheep.speed = speedFactor*5
                     whiteSheep.speed = -blackSheep.speed
 
+                    col = self.colObjects[blackSheep.col]
+                    col.collisions.append(bump)
+
                 elif (blackSheep.row == whiteSheep.row != None and whiteSheep.x - blackSheep.x <= 40
-                    and blackSheep.collided == False and whiteSheep.collided == False):
+                    and blackSheep.collided == False and whiteSheep.collided == False and whiteSheep.x > blackSheep.x):
                     
                     blackSheep.collided = True
                     whiteSheep.collided = True
 
-                    row = self.rowObjects[blackSheep.row]
-                    row.collision = True
-                    row.collisionNetPower = blackSheep.size - whiteSheep.size
-                    # print(row.collisionNetPower)
-                    row.collisionTotalPower = blackSheep.size + whiteSheep.size
-                    row.collidingSheep.append(blackSheep)
-                    row.collidingSheep.append(whiteSheep)
-                    
+                    bump = Bump()
+                    bump.collidingSheep.append(blackSheep)
+                    bump.collidingSheep.append(whiteSheep)
 
-                    speedFactor = row.collisionNetPower/row.collisionTotalPower
+                    bump.collisionNetPower = blackSheep.size - whiteSheep.size
+                    bump.collisionTotalPower = blackSheep.size + whiteSheep.size
+                    speedFactor = bump.collisionNetPower/bump.collisionTotalPower
                     blackSheep.speed = speedFactor*5
                     whiteSheep.speed = -blackSheep.speed
 
-                elif blackSheep.width != None and whiteSheep.width != None and blackSheep.collided == False and whiteSheep.collided == False:
+                    row = self.rowObjects[blackSheep.row]
+                    row.collisions.append(bump)
+
+                # elif (blackSheep.width != None and whiteSheep.width != None and blackSheep.collided == False and whiteSheep.collided == False):
+                elif (((blackSheep.row == None and whiteSheep.row != None) or (blackSheep.row != None and whiteSheep.row == None))
+                and blackSheep.collided == False and whiteSheep.collided == False):
 
                     if (blackSheep.x - blackSheep.width/2 - whiteSheep.width <= whiteSheep.x - whiteSheep.width/2 <= blackSheep.x + blackSheep.width/2
                     and blackSheep.y - blackSheep.height/2 - whiteSheep.height <= whiteSheep.y - whiteSheep.height/2 <= blackSheep.y + blackSheep.height/2):
@@ -536,27 +634,49 @@ class MyApp(App):
                             self.activeBlackSheep.remove(blackSheep)
                             movedBlackSheep = Sheep(blackSheep.size,whiteSheep.x-40,whiteSheep.y,'black',False,whiteSheep.row,None)
                             self.activeBlackSheep.append(movedBlackSheep)
+                
+                elif (blackSheep.row == whiteSheep.row != None and blackSheep.x - 20 <= whiteSheep.x + 20 
+                    and blackSheep.collided == True and whiteSheep.collided == True and blackSheep.x > whiteSheep.x):
 
+                    row = self.rowObjects[blackSheep.row]
+                    for bump in row.collisions:
+                        if blackSheep in bump.collidingSheep:
+                            for bump2 in row.collisions:
+                                if whiteSheep in bump2.collidingSheep and bump2 != bump:
+                                    
+                                    bump2.collisionNetPower += bump.collisionNetPower
+                                    bump2.collisionTotalPower += bump.collisionTotalPower
+                                    bump2.collidingSheep.extend(bump.collidingSheep)
+                                    speedFactor = bump2.collisionNetPower/bump2.collisionTotalPower
+                                    for sheep in bump2.collidingSheep:
+                                        if sheep.color == 'black':
+                                            sheep.speed = speedFactor*5
+                                        else:
+                                            sheep.speed = -speedFactor*5
+                                    row.collisions.remove(bump)
         
         for whiteSheep in self.activeWhiteSheep:
 
             for otherWhiteSheep in self.activeWhiteSheep:
 
                 if (whiteSheep.row == otherWhiteSheep.row != None and whiteSheep.collided == False and
-                    otherWhiteSheep.collided == True and whiteSheep.x-20 <= otherWhiteSheep.x+20):
+                    otherWhiteSheep.collided == True and whiteSheep.x-20 <= otherWhiteSheep.x+20 and whiteSheep.x >= otherWhiteSheep.x):
 
                     row = self.rowObjects[whiteSheep.row]
-                    row.collisionNetPower -= whiteSheep.size
-                    row.collisionTotalPower += whiteSheep.size
-                    row.collidingSheep.append(whiteSheep)
-                    # print(row.collisionNetPower)
+                    for bump in row.collisions:
 
-                    speedFactor = row.collisionNetPower/row.collisionTotalPower
-                    for sheep in row.collidingSheep:
-                        if sheep.color == 'black':
-                            sheep.speed = speedFactor*5
-                        else:
-                            sheep.speed = -speedFactor*5
+                        if otherWhiteSheep in bump.collidingSheep:
+
+                            bump.collisionNetPower -= whiteSheep.size
+                            bump.collisionTotalPower += whiteSheep.size
+                            bump.collidingSheep.append(whiteSheep)
+
+                            speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                            for sheep in bump.collidingSheep:
+                                if sheep.color == 'black':
+                                    sheep.speed = speedFactor*5
+                                else:
+                                    sheep.speed = -speedFactor*5
 
                     whiteSheep.collided = True
 
@@ -564,17 +684,18 @@ class MyApp(App):
                     otherWhiteSheep.collided == True and whiteSheep.y-20 <= otherWhiteSheep.y+20):
 
                     col = self.colObjects[whiteSheep.col]
-                    col.collisionNetPower -= whiteSheep.size
-                    col.collisionTotalPower += whiteSheep.size
-                    col.collidingSheep.append(whiteSheep)
-                    # print(col.collisionNetPower)
+                    for bump in col.collisions:
+                        if otherWhiteSheep in bump.collidingSheep:
+                            bump.collisionNetPower -= whiteSheep.size
+                            bump.collisionTotalPower += whiteSheep.size
+                            bump.collidingSheep.append(whiteSheep)
 
-                    speedFactor = col.collisionNetPower/col.collisionTotalPower
-                    for sheep in col.collidingSheep:
-                        if sheep.color == 'black':
-                            sheep.speed = speedFactor*5
-                        else:
-                            sheep.speed = -speedFactor*5
+                            speedFactor = bump.collisionNetPower/bump.collisionTotalPower
+                            for sheep in bump.collidingSheep:
+                                if sheep.color == 'black':
+                                    sheep.speed = speedFactor*5
+                                else:
+                                    sheep.speed = -speedFactor*5
 
                     whiteSheep.collided = True
 
@@ -615,9 +736,11 @@ class MyApp(App):
     def drawWin(self,canvas):
 
         if self.blackPlayer.win:
-            canvas.create_text(150,150,text='Black wins!!!')
+            canvas.create_text(250,243,text='Black wins!!!',font='Arial 24 bold',fill='orange')
+            canvas.create_text(250,280,text='Press "R" to restart',font='Arial 16 bold',fill='orange')
         else:
-            canvas.create_text(150,150,text='White wins!!!')
+            canvas.create_text(250,243,text='White wins!!!',font='Arial 24 bold',fill='orange')
+            canvas.create_text(250,280,text='Press "R" to restart',font='Arial 16 bold',fill='orange')
 
     def drawButtons(self,canvas):
 
@@ -699,57 +822,105 @@ class MyApp(App):
 
     def drawTimers(self,canvas):
 
-        if not self.blackPlayer.win or self.whitePlayer.win and not self.paused:
+        if not self.blackPlayer.win and not self.whitePlayer.win:
 
-            if self.blackCurrTime == None:
-                canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(10,70,50,110,extent=120,start=90,fill='green')
-                canvas.create_arc(10,70,50,110,extent=120,start=210,fill='green')
+            if self.paused:
 
-            elif self.blackCurrTime + 3 <= time.time():
-                canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
-                canvas.create_arc(10,70,50,110,extent=120,start=-270,fill='green')
+                if self.blackCurrTime == None:
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=90,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=210,fill='green')
 
-            elif self.blackCurrTime + 2 <= time.time():
-                canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
-            
-            elif self.blackCurrTime + 1 <= time.time():
-                canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                elif self.blackCurrTime + self.blackTimePassed + 3 <= self.pausedTime:
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-270,fill='green')
 
-            if self.whiteCurrTime == None:
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=90,fill='green')
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=210,fill='green')
+                elif self.blackCurrTime + self.blackTimePassed + 2 <= self.pausedTime:
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
+                
+                elif self.blackCurrTime + self.blackTimePassed + 1 <= self.pausedTime:
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
 
-            elif self.whiteCurrTime + 3 <= time.time():
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-270,fill='green')
+                if self.whiteCurrTime == None:
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=90,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=210,fill='green')
 
-            elif self.whiteCurrTime + 2 <= time.time():
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
-            
-            elif self.whiteCurrTime + 1 <= time.time():
-                canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                elif self.whiteCurrTime + self.whiteTimePassed + 3 <= self.pausedTime:
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-270,fill='green')
+
+                elif self.whiteCurrTime + self.whiteTimePassed + 2 <= self.pausedTime:
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
+                
+                elif self.whiteCurrTime + self.whiteTimePassed + 1 <= self.pausedTime:
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+
+            else:
+
+                if self.blackCurrTime == None:
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=90,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=210,fill='green')
+
+                elif self.blackCurrTime + self.blackTimePassed + 3 <= time.time():
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-270,fill='green')
+
+                elif self.blackCurrTime + self.blackTimePassed + 2 <= time.time():
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(10,70,50,110,extent=120,start=-150,fill='green')
+                
+                elif self.blackCurrTime + self.blackTimePassed + 1 <= time.time():
+                    canvas.create_arc(10,70,50,110,extent=120,start=-30,fill='green')
+
+                if self.whiteCurrTime == None:
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=90,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=210,fill='green')
+
+                elif self.whiteCurrTime + self.whiteTimePassed + 3 <= time.time():
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-270,fill='green')
+
+                elif self.whiteCurrTime + self.whiteTimePassed + 2 <= time.time():
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-150,fill='green')
+                
+                elif self.whiteCurrTime + self.whiteTimePassed + 1 <= time.time():
+                    canvas.create_arc(self.width-50,70,self.width-10,110,extent=120,start=-30,fill='green')
+
+    # def drawSplash(self,canvas):
+
+    #     canvas.create_text(250,50,text="Get your sheep to opponent's side of the board to score points!",font='Arial 12 bold')
+    #     canvas.create_text(250,75,text="Beware of collisions!",font='Arial 12 bold')
+    #     canvas.create_text(250,100,text='Press "A" to select AI mode',font='Arial 12 bold')
+    #     canvas.create_text(250,125,text='Press "M" to select multiplayer mode',font='Arial 12 bold')
+
+    #     canvas.create_text(250,175,text='For multiplayer mode:',font='Arial 12 bold')
+    #     canvas.create_text(250,200,text='Black can send sheep on rows using "1","2",...,"9"',font='Arial 12 bold')
+    #     canvas.create_text(250,225,text='Black can send sheep on columns using "Q","W","E"...,"P"',font='Arial 12 bold')
+    #     canvas.create_text(250,250,text='White can send sheep on rows/columns',font='Arial 12 bold')
+    #     canvas.create_text(250,275,text='by clicking "GO!" buttons next to grid',font='Arial 12 bold')
+
 
     def redrawAll(self,canvas):
         self.drawGrid(canvas)
         self.drawButtons(canvas)
         self.drawNextSheep(canvas)
-        self.drawActiveSheep(canvas)
+        if not self.blackPlayer.win and not self.whitePlayer.win:
+            self.drawActiveSheep(canvas)
         self.drawScore(canvas)
         self.drawTimers(canvas)
         if self.blackPlayer.win or self.whitePlayer.win:
             self.drawWin(canvas)
-
-
-
-# def main():
-#     # This runs the app
-#     runApp(width=400, height=300)
+        # self.drawSplash(canvas)
 
 if __name__ == '__main__':
     obj = MyApp()
