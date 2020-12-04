@@ -1,11 +1,11 @@
 from cmu_112_graphics import *
-import os, random, time
+import os, random, time, math
 
 #Super Bump Sheep 
 
 class Sheep():
 
-    def __init__(self,size,x,y,color,transposed,row=None,col=None):
+    def __init__(self,size,x,y,color,transposed,row,col,width,height):
         self.size = size
         self.points = 6 - size
         self.x = x
@@ -16,8 +16,8 @@ class Sheep():
         self.transposed = transposed
         self.speed = 5
         self.color = color
-        self.width = None
-        self.height = None
+        self.width = width
+        self.height = height
 
 class Row():
 
@@ -49,10 +49,10 @@ class MyApp(App):
         self.rows = 9
         self.cols = 9
         self.topMargin = 120
-        self.bottomMargin = 60
-        self.sideMargin = 50
-        self.colWidth = (self.width-2*self.sideMargin)/self.cols
-        self.rowHeight = (self.height-self.topMargin-self.bottomMargin)/self.rows
+        self.bottomMargin = 70
+        self.sideMargin = 70
+        self.colWidth = math.floor((self.width-2*self.sideMargin)/self.cols)
+        self.rowHeight = math.floor((self.height-self.topMargin-self.bottomMargin)/self.rows)
         self.paused = False
 
         self.rowObjects = []
@@ -85,20 +85,30 @@ class MyApp(App):
         for imagePath in self.blackSheepImagePaths:
             self.tempImage = self.loadImage(imagePath)
             width, height = self.tempImage.size
-            scaleFactor = 40/width
+            scaleFactor = self.rowHeight/height
             self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
-            self.transposedImage = self.scaledImage.transpose(Image.ROTATE_270)
             self.loadedBlackImages.append(self.scaledImage)
-            self.loadedTransposedBlackImages.append(self.transposedImage)
+
+
+            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
+            width_t, height_t = self.transposedImage.size
+            scaleFactor = self.colWidth/width_t
+            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
+            self.loadedTransposedBlackImages.append(self.scaledImage)
 
         for imagePath in self.whiteSheepImagePaths:
             self.tempImage = self.loadImage(imagePath)
             width, height = self.tempImage.size
-            scaleFactor = 40/width
+            scaleFactor = self.rowHeight/height
             self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
-            self.transposedImage = self.scaledImage.transpose(Image.ROTATE_270)
             self.loadedWhiteImages.append(self.scaledImage)
-            self.loadedTransposedWhiteImages.append(self.transposedImage)
+
+
+            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
+            width_t, height_t = self.transposedImage.size
+            scaleFactor = self.colWidth/width_t
+            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
+            self.loadedTransposedWhiteImages.append(self.scaledImage)
 
         self.nextBlackSheep = []
         self.nextWhiteSheep = []
@@ -118,47 +128,44 @@ class MyApp(App):
         self.blackTimePassed = 0
         self.whiteTimePassed = 0
 
+        self.pointsToWin = 15
+        self.AImode = False
+
     def getCellBounds(self,row,col):
 
-        colWidth = (self.width-2*self.sideMargin)/self.cols
-        rowHeight = (self.height-self.topMargin-self.bottomMargin)/self.rows
-        x1, y1 = self.sideMargin + col*colWidth, self.topMargin + row*rowHeight
-        x2, y2 = x1 + colWidth, y1 + rowHeight
+        x1, y1 = self.sideMargin + col*self.colWidth, self.topMargin + row*self.rowHeight
+        x2, y2 = x1 + self.colWidth, y1 + self.rowHeight
         return x1, y1, x2, y2 
 
     def createButtons(self):
-        
-        rowHeight = (self.height-self.topMargin-self.bottomMargin)/self.rows
 
         for row in range(self.rows):
             
             x2Left = self.sideMargin - 10
-            x1Left = x2Left - rowHeight
+            x1Left = x2Left - self.rowHeight
             
-            y1 = self.topMargin + row*rowHeight
-            y2 = y1 + rowHeight
+            y1 = self.topMargin + row*self.rowHeight
+            y2 = y1 + self.rowHeight
 
             self.vertButtonPositions.append((x1Left,y1,x2Left,y2))
 
             x1Right = self.width - self.sideMargin + 10
-            x2Right = x1Right + rowHeight
+            x2Right = x1Right + self.rowHeight
 
             self.vertButtonPositions.append((x1Right,y1,x2Right,y2))
-
-        colWidth = (self.width-2*self.sideMargin)/self.cols
 
         for col in range(self.cols):
 
             y2Top = self.topMargin - 10
-            y1Top = y2Top - colWidth
+            y1Top = y2Top - self.colWidth
             
-            x1 = self.sideMargin + col*colWidth
-            x2 = x1 + colWidth
+            x1 = self.sideMargin + col*self.colWidth
+            x2 = x1 + self.colWidth
 
             self.horizButtonPositions.append((x1,y1Top,x2,y2Top))
 
-            y1Bottom = self.width - self.bottomMargin + 10
-            y2Bottom = y1Bottom + colWidth
+            y1Bottom = self.height - self.bottomMargin + 10
+            y2Bottom = y1Bottom + self.colWidth
 
             self.horizButtonPositions.append((x1,y1Bottom,x2,y2Bottom))
 
@@ -184,12 +191,19 @@ class MyApp(App):
                 self.blackTimePassed += (time.time() - self.pausedTime)
                 self.whiteTimePassed += (time.time() - self.pausedTime)
 
+        elif event.key == 'r':
+            self.appStarted()
+
+        elif event.key == 'a':
+            self.AImode = True
+            print('AI activated')
+
         elif not self.blackPlayer.win and not self.whitePlayer.win:
 
             try:
                 
                 row = self.rowObjects[int(event.key)-1]
-                self.checkSheepReady(row)
+                self.checkSheepReady()
                 
                 if self.blackSheepReady:
                     rowToSend = int(event.key)
@@ -225,18 +239,26 @@ class MyApp(App):
                 if self.distance(x,y,cx,cy) <= self.rowHeight/2:
                     
                     row = self.rowObjects[i//2]
-                    self.checkSheepReady(row)
+                    self.checkSheepReady()
 
                     if i % 2 == 0 and self.blackSheepReady:
                         size = self.nextBlackSheep.pop(0)
-                        blackSheep = Sheep(size,self.sideMargin+20,cy,'black',False,i//2,None)
+
+                        image = self.loadedBlackImages[size-1]
+                        width, height = image.size
+
+                        blackSheep = Sheep(size,self.sideMargin+width/2,cy,'black',False,i//2,None,width,height)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
                         self.blackTimePassed = 0
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
-                        whiteSheep = Sheep(size,self.width-self.sideMargin-20,cy,'white',False,i//2,None)
+
+                        image = self.loadedWhiteImages[size-1]
+                        width, height = image.size
+
+                        whiteSheep = Sheep(size,self.width-self.sideMargin-width/2,cy,'white',False,i//2,None,width,height)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
                         self.whiteTimePassed = 0
@@ -250,24 +272,32 @@ class MyApp(App):
                 if self.distance(x,y,cx,cy) <= self.colWidth/2:
                     
                     col = self.colObjects[i//2]
-                    self.checkSheepReady(col)
+                    self.checkSheepReady()
 
                     if i % 2 == 0 and self.blackSheepReady:
                         size = self.nextBlackSheep.pop(0)
-                        blackSheep = Sheep(size,cx,self.topMargin+20,'black',True,None,i//2)
+
+                        image = self.loadedTransposedBlackImages[size-1]
+                        width, height = image.size
+
+                        blackSheep = Sheep(size,cx,self.topMargin+height/2,'black',True,None,i//2,width,height)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
                         self.blackTimePassed = 0
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
-                        whiteSheep = Sheep(size,cx,self.width-self.bottomMargin-20,'white',True,None,i//2)
+
+                        image = self.loadedTransposedWhiteImages[size-1]
+                        width, height = image.size
+
+                        whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-height/2,'white',True,None,i//2,width,height)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
                         self.whiteTimePassed = 0
 
 
-    def checkSheepReady(self,rowOrCol):
+    def checkSheepReady(self):
 
         if self.blackCurrTime == None or (self.blackCurrTime + self.blackTimePassed + 3) <= time.time():
             self.blackSheepReady = True
@@ -278,21 +308,21 @@ class MyApp(App):
         else:
             self.whiteSheepReady = False
 
-        if rowOrCol in self.rowObjects:
-            for bump in rowOrCol.collisions:
-                for sheep in bump.collidingSheep:
-                    if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
-                        self.blackSheepReady = False
-                    elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
-                        self.whiteSheepReady = False
+        # if rowOrCol in self.rowObjects:
+        #     for bump in rowOrCol.collisions:
+        #         for sheep in bump.collidingSheep:
+        #             if sheep.collided == True and sheep.color == 'black' and sheep.x - 20 <= self.sideMargin:
+        #                 self.blackSheepReady = False
+        #             elif sheep.collided == True and sheep.color == 'white' and sheep.x + 20 >= self.width - self.sideMargin:
+        #                 self.whiteSheepReady = False
 
-        elif rowOrCol in self.colObjects:
-            for bump in rowOrCol.collisions:
-                for sheep in bump.collidingSheep:
-                    if sheep.collided == True and sheep.color == 'black' and sheep.y - 20 <= self.topMargin:
-                        self.blackSheepReady = False
-                    elif sheep.collided == True and sheep.color == 'white' and sheep.y + 20 >= self.width - self.bottomMargin:
-                        self.whiteSheepReady = False
+        # elif rowOrCol in self.colObjects:
+        #     for bump in rowOrCol.collisions:
+        #         for sheep in bump.collidingSheep:
+        #             if sheep.collided == True and sheep.color == 'black' and sheep.y - 20 <= self.topMargin:
+        #                 self.blackSheepReady = False
+        #             elif sheep.collided == True and sheep.color == 'white' and sheep.y + 20 >= self.width - self.bottomMargin:
+        #                 self.whiteSheepReady = False
 
 
     def timerFired(self):
@@ -304,13 +334,278 @@ class MyApp(App):
             self.checkCollision()
             self.addPoints()
             self.checkWin()
+            self.playAI()
+
+    def playAI(self):
+
+        if self.AImode:
+
+            self.checkSheepReady()
+            if self.whiteSheepReady:
+
+                # nextBlackSheepSize = self.nextBlackSheep[0]
+                # nextBlackSheepPoints = 6 - nextBlackSheepSize
+                # if self.blackPlayer.score + nextBlackSheepPoints >= self.pointsToWin:
+
+                nextWhiteSheepSize = self.nextWhiteSheep[0]
+                nextWhiteSheepPoints = 6 - nextWhiteSheepSize
+                print(nextWhiteSheepPoints)
+
+                #Non-collided blackSheep
+                nonCollidedScore = 0
+                for blackSheep in self.activeBlackSheep:
+                    if blackSheep.collided == False:
+                        nonCollidedScore += blackSheep.points
+
+                if nonCollidedScore + self.blackPlayer.score >= self.pointsToWin:
+                    #defensive
+
+                    highPriorityRows = []
+                    highPriorityCols = []
+                    #send on row/col with only black, non-collided
+                    for blackSheep in self.activeBlackSheep:
+                        if blackSheep.collided == False:
+                            #checkRow for white
+                            if blackSheep.row != None:
+                                highPriorityRows.append(blackSheep.row)
+                            elif blackSheep.col != None:
+                                highPriorityCols.append(blackSheep.col)
+
+                    lowPriorityRows = set()
+                    lowPriorityCols = set()
+
+                    for whiteSheep in self.activeWhiteSheep:
+                        if whiteSheep.row in highPriorityRows:
+                            lowPriorityRows.add(whiteSheep.row)
+                            highPriorityRows.remove(whiteSheep.row)
+
+                    for whiteSheep in self.activeWhiteSheep:
+                        if whiteSheep.col in highPriorityCols:
+                            lowPriorityCols.add(whiteSheep.col)
+                            highPriorityCols.remove(whiteSheep.col)
+
+                    lowPriorityRows = list(lowPriorityRows)
+                    lowPriorityCols = list(lowPriorityCols)
+
+                    if len(highPriorityRows) > 0:
+
+                        gen = random.randint(1,len(highPriorityRows))
+                        rowToSend = highPriorityRows[gen-1]
+                        size = self.nextWhiteSheep.pop(0)
+                        y = self.getRowCy(rowToSend)
+                        whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,rowToSend,None)
+                        self.activeWhiteSheep.append(whiteSheep)
+                        self.whiteCurrTime = time.time()
+                        self.whiteTimePassed = 0
+
+                    elif len(highPriorityCols) > 0:
+
+                        gen = random.randint(1,len(highPriorityCols))
+                        colToSend = highPriorityCols[gen-1]
+                        size = self.nextWhiteSheep.pop(0)
+                        cx = self.getColCx(colToSend)
+                        whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,colToSend)
+                        self.activeWhiteSheep.append(whiteSheep)
+                        self.whiteCurrTime = time.time()
+                        self.whiteTimePassed = 0
+
+                    elif len(lowPriorityRows) > 0:
+                        gen = random.randint(1,len(lowPriorityRows))
+                        rowToSend = lowPriorityRows[gen-1]
+                        size = self.nextWhiteSheep.pop(0)
+                        y = self.getRowCy(rowToSend)
+                        whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,rowToSend,None)
+                        self.activeWhiteSheep.append(whiteSheep)
+                        self.whiteCurrTime = time.time()
+                        self.whiteTimePassed = 0
+                    
+                    elif len(lowPriorityCols) > 0:
+
+                        gen = random.randint(1,len(lowPriorityCols))
+                        colToSend = lowPriorityCols[gen-1]
+                        size = self.nextWhiteSheep.pop(0)
+                        cx = self.getColCx(colToSend)
+                        whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,colToSend)
+                        self.activeWhiteSheep.append(whiteSheep)
+                        self.whiteCurrTime = time.time()
+                        self.whiteTimePassed = 0
+
+                elif self.whitePlayer.score + nextWhiteSheepPoints >= self.pointsToWin:
+
+                    knownEmptyRows = self.getKnownEmptyRows()
+                    knownEmptyCols = self.getKnownEmptyCols()
+                    
+                    knownEmptyRowsCols = len(knownEmptyRows) + len(knownEmptyCols)
+                    if knownEmptyRowsCols > 0:
+                        gen = random.randint(1,knownEmptyRowsCols)
+                        if gen <= len(knownEmptyRows):
+                            rowToSend = knownEmptyRows[gen-1]
+                            size = self.nextWhiteSheep.pop(0)
+                            y = self.getRowCy(rowToSend)
+                            whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,rowToSend,None)
+                            self.activeWhiteSheep.append(whiteSheep)
+                            self.whiteCurrTime = time.time()
+                            self.whiteTimePassed = 0
+                        else:
+                            colToSend = knownEmptyCols[gen-len(knownEmptyRows)-1]
+                            size = self.nextWhiteSheep.pop(0)
+                            cx = self.getColCx(colToSend)
+                            whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,colToSend)
+                            self.activeWhiteSheep.append(whiteSheep)
+                            self.whiteCurrTime = time.time()
+                            self.whiteTimePassed = 0
+
+                    else:
+
+                        noCollisionRows = []
+                        for row in self.rowObjects:
+                            if row.collisions == []:
+                                noCollisionRows.append(row)
+
+                        noCollisionCols = []
+                        for col in self.colObjects:
+                            if col.collisions == []:
+                                noCollisionCols.append(col)
+
+                        noCollisionRowsCols = len(noCollisionRows) + len(noCollisionCols)
+                        if noCollisionRowsCols > 0:
+                            gen = random.randint(1,noCollisionRowsCols)
+                            if gen <= len(noCollisionRows):
+                                rowToSend = noCollisionRows[gen-1]
+                                size = self.nextWhiteSheep.pop(0)
+                                y = self.getRowCy(rowToSend)
+                                whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,rowToSend,None)
+                                self.activeWhiteSheep.append(whiteSheep)
+                                self.whiteCurrTime = time.time()
+                                self.whiteTimePassed = 0
+                            else:
+                                colToSend = noCollisionCols[gen-len(knownEmptyRows)-1]
+                                size = self.nextWhiteSheep.pop(0)
+                                cx = self.getColCx(colToSend)
+                                whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,colToSend)
+                                self.activeWhiteSheep.append(whiteSheep)
+                                self.whiteCurrTime = time.time()
+                                self.whiteTimePassed = 0
+
+                        else:
+                            
+                            bestRow = None
+                            bestCollision = None
+                            for row in self.rowObjects:
+                                
+                                bestBump = None
+                                for bump in row.collisions:
+                                    if bestBump == None:
+                                        bestBump = bump.collisionNetPower
+                                    elif bump.collisionNetPower < bestBump:
+                                        bestBump = bump.collisionNetPower
+
+                                if bestBump != None and bestRow == None:
+                                    bestRow = row
+                                    bestCollision = bestBump
+                                elif bestBump != None and bestBump < bestCollision:
+                                    bestRow = row
+                                    bestCollision = bestBump
+
+                            if bestRow != None:
+                                size = self.nextWhiteSheep.pop(0)
+                                y = self.getRowCy(bestRow)
+                                whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,bestRow,None)
+                                self.activeWhiteSheep.append(whiteSheep)
+                                self.whiteCurrTime = time.time()
+                                self.whiteTimePassed = 0
+
+                            else:
+
+                                bestCol = None
+                                bestCollision = None
+                                for col in self.colObjects:
+                                    
+                                    bestBump = None
+                                    for bump in col.collisions:
+                                        if bestBump == None:
+                                            bestBump = bump.collisionNetPower
+                                        elif bump.collisionNetPower < bestBump:
+                                            bestBump = bump.collisionNetPower
+
+                                    if bestBump != None and bestCol == None:
+                                        bestCol = col
+                                        bestCollision = bestBump
+                                    elif bestBump != None and bestBump < bestCollision:
+                                        bestCol = col
+                                        bestCollision = bestBump
+
+                                if bestCol != None:
+                                    size = self.nextWhiteSheep.pop(0)
+                                    cx = self.getRowCx(bestCol)
+                                    whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,bestCol)
+                                    self.activeWhiteSheep.append(whiteSheep)
+                                    self.whiteCurrTime = time.time()
+                                    self.whiteTimePassed = 0
+
+                                else:
+                                    totalRowCols = self.rows + self.cols
+                                    gen = random.randint(1,totalRow&Cols)
+                                    if gen <= self.rows:
+                                        rowToSend = gen
+                                        size = self.nextWhiteSheep.pop(0)
+                                        y = self.getRowCy(rowToSend)
+                                        whiteSheep = Sheep(size,self.width-self.sideMargin-20,y,'white',False,rowToSend,None)
+                                        self.activeWhiteSheep.append(whiteSheep)
+                                        self.whiteCurrTime = time.time()
+                                        self.whiteTimePassed = 0
+                                    else:
+                                        colToSend = gen-self.rows
+                                        size = self.nextWhiteSheep.pop(0)
+                                        x = self.getColCx(colToSend)
+                                        whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-20,'white',True,None,colToSend)
+                                        self.activeWhiteSheep.append(whiteSheep)
+                                        self.whiteCurrTime = time.time()
+                                        self.whiteTimePassed = 0
+
+    def getColCx(self,col):
+
+        index = col*2+1
+        x1,y1,x2,y2 = self.horizButtonPositions[index]
+        cx = (x1+x2)/2
+
+        return cx
+
+    def getKnownEmptyRows(self):
+
+        emptyRows = [i for i in range(self.rows)]
+
+        for blackSheep in self.activeBlackSheep:
+            if blackSheep.row in emptyRows:
+                emptyRows.remove(blackSheep.row)
+
+        for whiteSheep in self.activeWhiteSheep:
+            if whiteSheep.row in emptyRows:
+                emptyRows.remove(whiteSheep.row)
+
+        return emptyRows
+
+    def getKnownEmptyCols(self):
+
+        emptyCols = [i for i in range(self.rows)]
+
+        for blackSheep in self.activeBlackSheep:
+            if blackSheep.col in emptyCols:
+                emptyCols.remove(blackSheep.col)
+
+        for whiteSheep in self.activeWhiteSheep:
+            if whiteSheep.col in emptyCols:
+                emptyCols.remove(whiteSheep.col)
+
+        return emptyCols
+
 
 
     def addPoints(self):
 
         for blackSheep in self.activeBlackSheep:
 
-            if blackSheep.x + 20 >= (self.width - self.sideMargin) and blackSheep.row != None:
+            if blackSheep.x + blackSheep.width/2 >= (self.width - self.sideMargin) and blackSheep.row != None:
 
                 if blackSheep.collided == True:
 
@@ -337,7 +632,7 @@ class MyApp(App):
                     self.activeBlackSheep.remove(blackSheep)
                     self.blackPlayer.score += blackSheep.points
             
-            elif blackSheep.x - 20 < self.sideMargin and blackSheep.row != None:
+            elif blackSheep.x - blackSheep.width/2 < self.sideMargin and blackSheep.row != None:
 
                 row = self.rowObjects[blackSheep.row]
                 for bump in row.collisions:
@@ -366,7 +661,7 @@ class MyApp(App):
                     for whiteSheep in bump.collidingSheep:
                         whiteSheep.collided = False
             
-            elif blackSheep.y + 20 >= (self.width - self.bottomMargin) and blackSheep.col != None:
+            elif blackSheep.y + blackSheep.height/2 >= (self.width - self.bottomMargin) and blackSheep.col != None:
                 
                 if blackSheep.collided == True:
 
@@ -391,7 +686,7 @@ class MyApp(App):
                     self.activeBlackSheep.remove(blackSheep)
                     self.blackPlayer.score += blackSheep.points
 
-            elif blackSheep.y - 20 < self.topMargin and blackSheep.col != None:
+            elif blackSheep.y - blackSheep.height/2 < self.topMargin and blackSheep.col != None:
 
                 col = self.colObjects[blackSheep.col]
                 for bump in col.collisions:
@@ -421,7 +716,7 @@ class MyApp(App):
 
         for whiteSheep in self.activeWhiteSheep:
 
-            if whiteSheep.x - 20 <= self.sideMargin and whiteSheep.row != None:
+            if whiteSheep.x - whiteSheep.width/2 <= self.sideMargin and whiteSheep.row != None:
 
                 if whiteSheep.collided == True:
 
@@ -447,7 +742,7 @@ class MyApp(App):
                     self.activeWhiteSheep.remove(whiteSheep)
                     self.whitePlayer.score += whiteSheep.points
 
-            elif whiteSheep.x + 20 > (self.width - self.sideMargin) and whiteSheep.row != None:
+            elif whiteSheep.x + whiteSheep.width/2 > (self.width - self.sideMargin) and whiteSheep.row != None:
 
                 row = self.rowObjects[whiteSheep.row]
                 for bump in row.collisions:
@@ -475,7 +770,7 @@ class MyApp(App):
                     for blackSheep in bump.collidingSheep:
                         blackSheep.collided = False
 
-            elif whiteSheep.y - 20 <= self.topMargin and whiteSheep.col != None:
+            elif whiteSheep.y - whiteSheep.height/2 <= self.topMargin and whiteSheep.col != None:
 
                 if whiteSheep.collided == True:
                     
@@ -501,7 +796,7 @@ class MyApp(App):
                     self.activeWhiteSheep.remove(whiteSheep)
                     self.whitePlayer.score += whiteSheep.points
 
-            elif whiteSheep.y + 20 > (self.height - self.bottomMargin) and whiteSheep.col != None:
+            elif whiteSheep.y + whiteSheep.height/2 > (self.height - self.bottomMargin) and whiteSheep.col != None:
 
                 col = self.colObjects[whiteSheep.col]
                 for bump in col.collisions:
@@ -537,7 +832,7 @@ class MyApp(App):
             for otherBlackSheep in self.activeBlackSheep:
 
                 if (blackSheep.row == otherBlackSheep.row != None and blackSheep.collided == False and
-                    otherBlackSheep.collided == True and blackSheep.x+20 >= otherBlackSheep.x-20 and blackSheep.x < otherBlackSheep.x):
+                    otherBlackSheep.collided == True and blackSheep.x+blackSheep.width/2 >= otherBlackSheep.x-otherBlackSheep.width/2 and blackSheep.x < otherBlackSheep.x):
 
                     row = self.rowObjects[blackSheep.row]
                     for bump in row.collisions:
@@ -556,7 +851,7 @@ class MyApp(App):
                     blackSheep.collided = True
 
                 elif (blackSheep.col == otherBlackSheep.col != None and blackSheep.collided == False and
-                    otherBlackSheep.collided == True and blackSheep.y+20 >= otherBlackSheep.y-20):
+                    otherBlackSheep.collided == True and blackSheep.y+blackSheep.height/2 >= otherBlackSheep.y-otherBlackSheep.height/2):
 
                     col = self.colObjects[blackSheep.col]
                     for bump in col.collisions:
@@ -577,7 +872,7 @@ class MyApp(App):
             for whiteSheep in self.activeWhiteSheep:
 
 
-                if (blackSheep.col == whiteSheep.col != None and whiteSheep.y - blackSheep.y <= 40
+                if (blackSheep.col == whiteSheep.col != None and whiteSheep.y - blackSheep.y <= whiteSheep.height/2+blackSheep.height/2
                     and blackSheep.collided == False and whiteSheep.collided == False):
                     
                     blackSheep.collided = True
@@ -596,7 +891,7 @@ class MyApp(App):
                     col = self.colObjects[blackSheep.col]
                     col.collisions.append(bump)
 
-                elif (blackSheep.row == whiteSheep.row != None and whiteSheep.x - blackSheep.x <= 40
+                elif (blackSheep.row == whiteSheep.row != None and whiteSheep.x - blackSheep.x <= whiteSheep.width/2+blackSheep.width/2
                     and blackSheep.collided == False and whiteSheep.collided == False and whiteSheep.x > blackSheep.x):
                     
                     blackSheep.collided = True
@@ -626,16 +921,17 @@ class MyApp(App):
                         if whiteSheep.col != None:
                         
                             self.activeWhiteSheep.remove(whiteSheep)
-                            movedWhiteSheep = Sheep(whiteSheep.size,blackSheep.x+40,blackSheep.y,'white',False,blackSheep.row,None)
+
+                            movedWhiteSheep = Sheep(whiteSheep.size,blackSheep.x+blackSheep.width/2+whiteSheep.width/2,blackSheep.y,'white',False,blackSheep.row,None,whiteSheep.width,whiteSheep.height)
                             self.activeWhiteSheep.append(movedWhiteSheep)
 
                         elif blackSheep.col != None:
 
                             self.activeBlackSheep.remove(blackSheep)
-                            movedBlackSheep = Sheep(blackSheep.size,whiteSheep.x-40,whiteSheep.y,'black',False,whiteSheep.row,None)
+                            movedBlackSheep = Sheep(blackSheep.size,whiteSheep.x-whiteSheep.width/2-blackSheep.width/2,whiteSheep.y,'black',False,whiteSheep.row,None,blackSheep.width,blackSheep.height)
                             self.activeBlackSheep.append(movedBlackSheep)
                 
-                elif (blackSheep.row == whiteSheep.row != None and blackSheep.x - 20 <= whiteSheep.x + 20 
+                elif (blackSheep.row == whiteSheep.row != None and blackSheep.x - blackSheep.width/2 <= whiteSheep.x + whiteSheep.width/2
                     and blackSheep.collided == True and whiteSheep.collided == True and blackSheep.x > whiteSheep.x):
 
                     row = self.rowObjects[blackSheep.row]
@@ -660,7 +956,7 @@ class MyApp(App):
             for otherWhiteSheep in self.activeWhiteSheep:
 
                 if (whiteSheep.row == otherWhiteSheep.row != None and whiteSheep.collided == False and
-                    otherWhiteSheep.collided == True and whiteSheep.x-20 <= otherWhiteSheep.x+20 and whiteSheep.x >= otherWhiteSheep.x):
+                    otherWhiteSheep.collided == True and whiteSheep.x-whiteSheep.width/2 <= otherWhiteSheep.x+otherWhiteSheep.width/2 and whiteSheep.x >= otherWhiteSheep.x):
 
                     row = self.rowObjects[whiteSheep.row]
                     for bump in row.collisions:
@@ -681,7 +977,7 @@ class MyApp(App):
                     whiteSheep.collided = True
 
                 elif (whiteSheep.col == otherWhiteSheep.col != None and whiteSheep.collided == False and
-                    otherWhiteSheep.collided == True and whiteSheep.y-20 <= otherWhiteSheep.y+20):
+                    otherWhiteSheep.collided == True and whiteSheep.y-whiteSheep.height/2 <= otherWhiteSheep.y+whiteSheep.height/2):
 
                     col = self.colObjects[whiteSheep.col]
                     for bump in col.collisions:
@@ -727,10 +1023,10 @@ class MyApp(App):
 
     def checkWin(self):
 
-        if self.blackPlayer.score >= 15:
+        if self.blackPlayer.score >= self.pointsToWin:
             self.blackPlayer.win = True
 
-        elif self.whitePlayer.score >= 15:
+        elif self.whitePlayer.score >= self.pointsToWin:
             self.whitePlayer.win = True
 
     def drawWin(self,canvas):
@@ -764,15 +1060,36 @@ class MyApp(App):
 
     def drawNextSheep(self,canvas):
 
+        x = 30
+
         for i in range(len(self.nextBlackSheep)):
 
+            image = self.loadedBlackImages[self.nextBlackSheep[i]-1]
+            width, height = image.size
+
             photoImage = self.getCachedPhotoImage(self.loadedBlackImages[self.nextBlackSheep[i]-1])
-            canvas.create_image(20+i*40, 40, image=photoImage)
+            if x > 30:
+                x += width/2
+            canvas.create_image(x, 40, image=photoImage)
+
+            x += width/2
+
+        x = self.width-30
 
         for i in range(len(self.nextWhiteSheep)):
 
+            image = self.loadedWhiteImages[self.nextWhiteSheep[i]-1]
+            width, height = image.size
+
             photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]-1])
-            canvas.create_image(self.width-20-i*40, 40, image=photoImage)
+            if x < self.width - 30:
+                x -= width/2
+            canvas.create_image(x, 40, image=photoImage)
+
+            x -= width/2
+
+            # photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]-1])
+            # canvas.create_image(self.width-20-i*40, 40, image=photoImage)
 
     def getWidthAndHeight(self,sheep,image):
 
