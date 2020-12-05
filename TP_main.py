@@ -85,27 +85,32 @@ class MyApp(App):
         self.loadedTransposedBlackImages = []
         self.loadedTransposedWhiteImages = []
 
-        self.grassGrid = self.loadImage('grassGrid.png')
+        self.grassGrid = self.loadImage('images/grassGrid.png')
 
-        self.logo = self.loadImage('logo.jpeg')
+        self.logo = self.loadImage('images/logo.jpeg')
         width, height = self.logo.size
         scaleFactor = 300/width
         self.scaledLogo = self.scaleImage(self.logo,scaleFactor)
 
-        self.sheep1 = self.loadImage('sheep1.png')
+        self.sheep1 = self.loadImage('images/sheep1.png')
         width, height = self.sheep1.size
         scaleFactor = 200/height
         self.scaledSheep1 = self.scaleImage(self.sheep1,scaleFactor)
         
-        self.sheep2 = self.loadImage('sheep2.png')
+        self.sheep2 = self.loadImage('images/sheep2.png')
         width, height = self.sheep2.size
         scaleFactor = 200/height
         self.scaledSheep2 = self.scaleImage(self.sheep2,scaleFactor)
 
-        self.button = self.loadImage('button.png')
+        self.button = self.loadImage('images/button.png')
         width, height = self.button.size
         scaleFactor = self.rowHeight/height
         self.scaledButton = self.scaleImage(self.button,scaleFactor)
+
+        self.arrow = self.loadImage('images/arrow.jpg')
+        width, height = self.arrow.size
+        scaleFactor = self.colWidth/width
+        self.scaledArrow = self.scaleImage(self.arrow,scaleFactor)
 
         for imagePath in self.blackSheepImagePaths:
             self.tempImage = self.loadImage(imagePath)
@@ -159,6 +164,8 @@ class MyApp(App):
         self.setupComplete = False
         self.gameStarted = False
 
+        self.colCounter = 0
+
     def getCellBounds(self,row,col):
 
         x1, y1 = self.sideMargin + col*self.colWidth, self.topMargin + row*self.rowHeight
@@ -170,7 +177,7 @@ class MyApp(App):
         for row in range(self.rows):
             
             x2Left = self.sideMargin - 4.6
-            x1Left = self.sideMargin - self.rowHeight + 4.6
+            x1Left = self.sideMargin - self.colWidth + 4.6
             
             y1 = self.topMargin + row*self.rowHeight + 4.6
             y2 = self.topMargin + (row+1)*self.rowHeight - 4.6
@@ -178,20 +185,21 @@ class MyApp(App):
             self.vertButtonPositions.append((x1Left,y1,x2Left,y2))
 
             x1Right = self.width - self.sideMargin2 + 4.6
-            x2Right = self.width - self.sideMargin2 + self.rowHeight - 4.6
+            x2Right = self.width - self.sideMargin2 + self.colWidth - 4.6
 
             self.vertButtonPositions.append((x1Right,y1,x2Right,y2))
 
         for col in range(self.cols):
 
             y2Top = self.topMargin
-            y1Top = self.topMargin - self.colWidth + 9.2
+            y1Top = self.topMargin - self.rowHeight + 9.2
             
             x1 = self.sideMargin + col*self.colWidth + 4.6
             x2 = self.sideMargin + (col+1)*self.colWidth - 4.6
             self.horizButtonPositions.append((x1,y1Top,x2,y2Top))
+
             y1Bottom = self.height - self.bottomMargin + 4.6
-            y2Bottom = self.height - self.bottomMargin + self.colWidth - 4.6
+            y2Bottom = self.height - self.bottomMargin + self.rowHeight - 4.6
 
             self.horizButtonPositions.append((x1,y1Bottom,x2,y2Bottom))
 
@@ -218,7 +226,7 @@ class MyApp(App):
                 self.whiteTimePassed += (time.time() - self.pausedTime)
 
         #ready
-        elif event.key == 'r' and not self.gameStarted:
+        elif event.key == 'r' and not self.gameStarted and self.setupComplete:
             self.gameStarted = True
 
         #restart
@@ -235,6 +243,34 @@ class MyApp(App):
 
         elif event.key == 's' and not self.setupComplete:
             self.setupComplete = True
+
+        elif event.key == 'Right':
+            if self.colCounter < 11:
+                self.colCounter += 1
+
+        elif event.key == 'Left':
+            if self.colCounter > 0:
+                self.colCounter -= 1
+
+        elif event.key == 'Space' and self.gameStarted:
+
+            self.checkSheepReady()
+
+            if self.blackSheepReady:
+                colToSend = self.colCounter
+                
+                size = self.nextBlackSheep.pop(0)
+
+                image = self.loadedTransposedBlackImages[size-1]
+                width, height = image.size
+
+                x = self.getColCx(colToSend)
+                y = self.topMargin+height/2
+                blackSheep = Sheep(size,x,y,'black',True,None,colToSend,width,height)
+
+                self.activeBlackSheep.append(blackSheep)
+                self.blackCurrTime = time.time()
+                self.blacktimePassed = 0
 
         elif self.gameStarted:
 
@@ -258,6 +294,7 @@ class MyApp(App):
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
                         self.blacktimePassed = 0
+                    
                     else:
                         print(f'Press a number from 1 to {self.rows}')
 
@@ -290,7 +327,6 @@ class MyApp(App):
                         width, height = image.size
 
                         blackSheep = Sheep(size,self.sideMargin+width/2,cy,'black',False,i//2,None,width,height)
-                        print(blackSheep.row)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
                         self.blackTimePassed = 0
@@ -302,7 +338,6 @@ class MyApp(App):
                         width, height = image.size
 
                         whiteSheep = Sheep(size,self.width-self.sideMargin-width/2,cy,'white',False,i//2,None,width,height)
-                        print(whiteSheep.row)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
                         self.whiteTimePassed = 0
@@ -325,7 +360,6 @@ class MyApp(App):
                         width, height = image.size
 
                         blackSheep = Sheep(size,cx,self.topMargin+height/2,'black',True,None,i//2,width,height)
-                        print(blackSheep.col)
                         self.activeBlackSheep.append(blackSheep)
                         self.blackCurrTime = time.time()
                         self.blackTimePassed = 0
@@ -337,7 +371,6 @@ class MyApp(App):
                         width, height = image.size
 
                         whiteSheep = Sheep(size,cx,self.height-self.bottomMargin-height/2,'white',True,None,i//2,width,height)
-                        print(whiteSheep.col)
                         self.activeWhiteSheep.append(whiteSheep)
                         self.whiteCurrTime = time.time()
                         self.whiteTimePassed = 0
@@ -399,7 +432,6 @@ class MyApp(App):
                         bump.collidingSheep.remove(blackSheep)
                         self.activeBlackSheep.remove(blackSheep)
 
-                        # if bump.collisionTotalPower != 0:
                         speedFactor = bump.collisionNetPower/bump.collisionTotalPower
                         for sheep in bump.collidingSheep:
                             if sheep.color == 'black':
@@ -431,7 +463,6 @@ class MyApp(App):
                         bump.collidingSheep.remove(blackSheep)
                         self.activeBlackSheep.remove(blackSheep)
 
-                        # if bump.collisionTotalPower != 0:
                         speedFactor = bump.collisionNetPower/bump.collisionTotalPower
                         for sheep in bump.collidingSheep:
                             if sheep.color == 'black':
@@ -765,16 +796,6 @@ class MyApp(App):
             photoImage = self.getCachedPhotoImage(image)
             canvas.create_image((x1+x2)/2,(y1+y2)/2,image=photoImage)
 
-        # for x1,y1,x2,y2 in self.vertButtonPositions:
-
-        #     canvas.create_oval(x1,y1,x2,y2,fill='grey')
-        #     canvas.create_text((x1+x2)//2,(y1+y2)//2,text='GO!')
-
-        # for x1,y1,x2,y2 in self.horizButtonPositions:
-
-        #     canvas.create_oval(x1,y1,x2,y2,fill='grey')
-        #     canvas.create_text((x1+x2)//2,(y1+y2)//2,text='GO!')
-
     def drawGrid(self,canvas):
         for row in range(self.rows):
             for col in range(self.cols):
@@ -813,9 +834,6 @@ class MyApp(App):
 
             x -= width/2
 
-            # photoImage = self.getCachedPhotoImage(self.loadedWhiteImages[self.nextWhiteSheep[i]-1])
-            # canvas.create_image(self.width-20-i*40, 40, image=photoImage)
-
     def getWidthAndHeight(self,sheep,image):
 
         width, height = image.size
@@ -826,6 +844,13 @@ class MyApp(App):
 
         photoImage = self.getCachedPhotoImage(self.grassGrid)
         canvas.create_image(self.width/2,self.height/2+45,image=photoImage)
+
+        buttonCol = self.colCounter*2
+        x1,y1,x2,y2 = self.horizButtonPositions[buttonCol]
+
+        photoImage = self.getCachedPhotoImage(self.scaledArrow)
+        canvas.create_image((x1+x2)/2,(y1+y2)/2-self.rowHeight,image=photoImage)
+
 
     def drawActiveSheep(self,canvas):
 
@@ -880,38 +905,38 @@ class MyApp(App):
                 canvas.create_text(self.width-30,70,text='Cooldown')
 
                 if self.blackCurrTime == None:
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=90,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=210,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=90,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=210,fill='green')
 
                 elif self.blackCurrTime + self.blackTimePassed + 3 <= self.pausedTime:
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-150,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-270,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-270,fill='green')
 
                 elif self.blackCurrTime + self.blackTimePassed + 2 <= self.pausedTime:
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
                 
                 elif self.blackCurrTime + self.blackTimePassed + 1 <= self.pausedTime:
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
 
                 if self.whiteCurrTime == None:
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=90,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=210,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=90,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=210,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 3 <= self.pausedTime:
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-150,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-270,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-270,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 2 <= self.pausedTime:
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-150,fill='green')
                 
                 elif self.whiteCurrTime + self.whiteTimePassed + 1 <= self.pausedTime:
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
 
             else:
 
@@ -919,35 +944,34 @@ class MyApp(App):
                 canvas.create_text(self.width-30,70,text='Cooldown')
 
                 if self.blackCurrTime == None:
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=90,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=210,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=90,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=210,fill='green')
 
                 elif self.blackCurrTime + self.blackTimePassed + 3 <= time.time():
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-150,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-270,fill='green')
-
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-270,fill='green')
                 elif self.blackCurrTime + self.blackTimePassed + 2 <= time.time():
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(10,80,50,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
                 
                 elif self.blackCurrTime + self.blackTimePassed + 1 <= time.time():
-                    canvas.create_arc(10,80,50,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,120,extent=120,start=-30,fill='green')
 
                 if self.whiteCurrTime == None:
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=90,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=210,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=90,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=210,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 3 <= time.time():
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-150,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-270,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-270,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 2 <= time.time():
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='green')
                 
                 elif self.whiteCurrTime + self.whiteTimePassed + 1 <= time.time():
                     canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
@@ -976,16 +1000,16 @@ class MyApp(App):
             canvas.create_text(self.width/2,cyn2,text="Send sheep and cross your opponent's line to score points!",font='Arial 9 bold')
             canvas.create_text(self.width/2,cyn1,text="Smaller sheep are weaker in collisions but count for more points!",font='Arial 9 bold')
             canvas.create_text(self.width/2,cy,text="Once you have activated all the modes you want, press 'S' to start!",font='Arial 9 bold')
-            canvas.create_text(self.width/2,cy1,text="Press 'A' to activate/deactivate AI mode",font='Arial 9 bold',fill='blue')
+    
             if self.AImode:
-                canvas.create_text(self.width/2,cy2,text="(activated)",font='Arial 9 bold',fill='blue')
+                canvas.create_text(self.width/2,cy1,text="Press 'A' to activate/deactivate AI mode (activated)",font='Arial 9 bold',fill='blue')
             else:
-                canvas.create_text(self.width/2,cy2,text="(deactivated)",font='Arial 9 bold',fill='blue')
-            canvas.create_text(self.width/2,cy3,text="Press 'D' to activate/deactivate disappear mode",font='Arial 9 bold',fill='red')
+                canvas.create_text(self.width/2,cy1,text="Press 'A' to activate/deactivate AI mode (deactivated)",font='Arial 9 bold',fill='blue')
+            canvas.create_text(self.width/2,cy2,text="Press 'D' to activate/deactivate disappear mode",font='Arial 9 bold',fill='red')
             if self.disappearMode:
-                canvas.create_text(self.width/2,cy4,text="(activated)",font='Arial 9 bold',fill='red')
+                canvas.create_text(self.width/2,cy3,text="row-col colliding sheep disappear! (activated)",font='Arial 9 bold',fill='red')
             else:
-                canvas.create_text(self.width/2,cy4,text="(deactivated)",font='Arial 9 bold',fill='red')
+                canvas.create_text(self.width/2,cy3,text="row-col colliding sheep disappear! (deactivated)",font='Arial 9 bold',fill='red')
 
     def redrawAll(self,canvas):
         
