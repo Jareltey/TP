@@ -1,14 +1,25 @@
+#File containing code for AI
+
 from cmu_112_graphics import *
 from TP_main import *
 import os, random, time
 
-#AI
+#cooldown check for AI, added 0.1 sec for smoother gameplays
+def checkSheepReadyAI(self):
+
+        if self.blackCurrTime == None or (self.blackCurrTime + self.blackTimePassed + 3.1) <= time.time():
+            self.blackSheepReady = True
+        else:
+            self.blackSheepReady = False
+        if self.whiteCurrTime == None or (self.whiteCurrTime + self.whiteTimePassed + 3.1) <= time.time():
+            self.whiteSheepReady = True
+        else:
+            self.whiteSheepReady = False
 
 def AI(self):
 
-    self.checkSheepReady()
+    checkSheepReadyAI(self)
     if self.whiteSheepReady:
-
         
         nextWhiteSheepSize = self.nextWhiteSheep[0]
         nextWhiteSheepPoints = 6 - nextWhiteSheepSize
@@ -40,9 +51,25 @@ def AI(self):
         #neither player near winning so case on sheep size
         else:
 
-            nextWhiteSheepSize = self.nextWhiteSheep[0]
+            spreadOutOrFavoredRowCol = False
+            sendOnBestNetRowCol = False
 
-            if nextWhiteSheepSize == 1:
+            nextWhiteSheepSize = self.nextWhiteSheep[0]
+            checkRelativeStrength(self)
+
+            if spreadOutOrFavoredRowCol:
+
+                if sendBestCollidedRowOrCol(self) == False:
+
+                    if sendEmptyRowsOrCols(self) == False:
+
+                        checkNetPointsAndSend(self)
+
+            elif sendOnBestNetRowCol:
+
+                checkNetPointsAndSend(self)
+
+            elif nextWhiteSheepSize == 1:
                 
                 if sendOnlyWhiteRowOrCol(self) == False:
 
@@ -73,6 +100,9 @@ def AI(self):
             elif nextWhiteSheepSize == 4 or nextWhiteSheepSize == 5:
 
                 checkNetPointsAndSend(self)
+
+            self.spreadOutOrFavoredRowCol = False
+            self.sendOnBestNetRowCol = False
 
 #consider points each side has invested in row/cols and send on row/col 
 #to maximise gain/minimize loss
@@ -415,7 +445,7 @@ def sendBestCollidedRowOrCol(self,sheepSize):
     else:
         return False
 
-    #send on any row/col
+#send on any row/col
 def sendAnywhere(self):
 
     totalRowCols = self.rows + self.cols
@@ -445,8 +475,21 @@ def sendAnywhere(self):
         self.whiteCurrTime = time.time()
         self.whiteTimePassed = 0
 
+def checkRelativeStrength(self):
 
+    blackStrength = 0
+    for size in self.nextBlackSheep:
+        blackStrength += size
 
+    whiteStrength = 0
+    for size in self.nextWhiteSheep:
+        whiteStrength += size
+
+    if blackStrength >= whiteStrength + 5:
+        spreadOutOrFavoredRowCol = True
+
+    elif whiteStrength >= blackStrength + 5:
+        sendOnBestNetRowCol = True
 
 
 

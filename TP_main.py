@@ -1,8 +1,8 @@
-from cmu_112_graphics import *
-import os, random, time, math
-from TP_AI import *
+#Main file containing code for classes and animations
 
-#Super Bump Sheep 
+from cmu_112_graphics import *
+import os, random, time, math, tkinter as tk
+from TP_AI import *
 
 class Sheep():
 
@@ -48,6 +48,7 @@ class MyApp(App):
 
     def appStarted(self):
 
+        self._root.resizable(False, False)
         self.rows = 9
         self.cols = 12
         self.topMargin = 153
@@ -57,6 +58,106 @@ class MyApp(App):
         self.colWidth = math.floor((self.width-2*self.sideMargin)/self.cols)
         self.rowHeight = math.floor((self.height-self.topMargin-self.bottomMargin)/self.rows)
         self.paused = False
+
+        self.initialize()
+
+        #CITATION: I obtained images for sheep from screenshots within "Bump Sheep" game
+        for image in os.listdir('sheep'):
+            self.sheepImagePaths.append('sheep/'+image)
+        
+        self.blackSheepImagePaths = self.sheepImagePaths[:5]
+        self.whiteSheepImagePaths = self.sheepImagePaths[5:]
+        
+        self.loadedBlackImages = []
+        self.loadedWhiteImages = []
+
+        self.loadedTransposedBlackImages = []
+        self.loadedTransposedWhiteImages = []
+
+        #CITATION: I obtained images for buttons from screenshots within "Bump Sheep" game
+        self.button = self.loadImage('images/button.png')
+        width, height = self.button.size
+        scaleFactor = self.rowHeight/height
+        self.scaledButton = self.scaleImage(self.button,scaleFactor)
+
+        #CITATION: I obtained images of grassGrid, logo, sheep1, sheep2, arrow online
+        #grassGrid - https://www.904custom.com/media/catalog/product/cache/7/image/600x600/9df78eab33525d08d6e5fb8d27136e95/1/6/16403-grassy-field-grid-gaming-mat-hcb.png
+        #greenBackground - https://i.pinimg.com/originals/a0/4d/c8/a04dc80196748cf4a885f53104626bda.jpg
+        #logo, playButton, sheep1, sheep 2 - https://i.ytimg.com/vi/LcAt5S9nGio/maxresdefault.jpg
+        #arrow - https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRh96iifammcJ_PQSRh_Sj2Uf-VPdM8-WD7Lw&usqp=CAU
+        
+        self.grassGrid = self.loadImage('images/grassGrid.png')
+
+        self.greenBackground = self.loadImage('images/background.jpg')
+        width, height = self.greenBackground.size
+        scaleFactor1 = 500/width
+        scaleFactor2 = 550/height
+        self.scaledBackground1 = self.scaleImage(self.greenBackground,scaleFactor1)
+        self.scaledBackground2 = self.scaleImage(self.greenBackground,scaleFactor2)
+
+        self.logo = self.loadImage('images/logo.jpeg')
+        width, height = self.logo.size
+        scaleFactor = 500/width
+        self.scaledLogo = self.scaleImage(self.logo,scaleFactor)
+
+        self.playButton = self.loadImage('images/painted.png')
+        width, height = self.playButton.size
+        scaleFactor = 150/width
+        self.scaledPlayButton = self.scaleImage(self.playButton,scaleFactor)
+
+        self.sheep1 = self.loadImage('images/sheep1.png')
+        width, height = self.sheep1.size
+        scaleFactor = 200/height
+        self.scaledSheep1 = self.scaleImage(self.sheep1,scaleFactor)
+        
+        self.sheep2 = self.loadImage('images/sheep2.png')
+        width, height = self.sheep2.size
+        scaleFactor = 200/height
+        self.scaledSheep2 = self.scaleImage(self.sheep2,scaleFactor)
+
+        self.arrow = self.loadImage('images/arrow.jpg')
+        width, height = self.arrow.size
+        scaleFactor = self.colWidth/width
+        self.scaledArrow = self.scaleImage(self.arrow,scaleFactor)
+
+        for imagePath in self.blackSheepImagePaths:
+            self.tempImage = self.loadImage(imagePath)
+            width, height = self.tempImage.size
+            scaleFactor = self.rowHeight/height
+            self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
+            self.loadedBlackImages.append(self.scaledImage)
+
+            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
+            width_t, height_t = self.transposedImage.size
+            scaleFactor = self.colWidth/width_t
+            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
+            self.loadedTransposedBlackImages.append(self.scaledImage)
+
+        for imagePath in self.whiteSheepImagePaths:
+            self.tempImage = self.loadImage(imagePath)
+            width, height = self.tempImage.size
+            scaleFactor = self.rowHeight/height
+            self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
+            self.loadedWhiteImages.append(self.scaledImage)
+
+            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
+            width_t, height_t = self.transposedImage.size
+            scaleFactor = self.colWidth/width_t
+            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
+            self.loadedTransposedWhiteImages.append(self.scaledImage)
+
+        self.vertButtonPositions = []
+        self.horizButtonPositions = []
+        self.createButtons()
+
+        self.pointsToWin = 15
+        self.AImode = False
+        self.disappearMode = False
+        self.play = False
+        self.setupComplete = False
+
+
+    def initialize(self):
 
         self.rowObjects = []
         
@@ -72,84 +173,12 @@ class MyApp(App):
 
         self.sheepImagePaths = []
 
-        for image in os.listdir('sheep'):
-            self.sheepImagePaths.append('sheep/'+image)
-        
-        
-        self.blackSheepImagePaths = self.sheepImagePaths[:5]
-        self.whiteSheepImagePaths = self.sheepImagePaths[5:]
-        
-        self.loadedBlackImages = []
-        self.loadedWhiteImages = []
-
-        self.loadedTransposedBlackImages = []
-        self.loadedTransposedWhiteImages = []
-
-        self.grassGrid = self.loadImage('images/grassGrid.png')
-
-        self.logo = self.loadImage('images/logo.jpeg')
-        width, height = self.logo.size
-        scaleFactor = 300/width
-        self.scaledLogo = self.scaleImage(self.logo,scaleFactor)
-
-        self.sheep1 = self.loadImage('images/sheep1.png')
-        width, height = self.sheep1.size
-        scaleFactor = 200/height
-        self.scaledSheep1 = self.scaleImage(self.sheep1,scaleFactor)
-        
-        self.sheep2 = self.loadImage('images/sheep2.png')
-        width, height = self.sheep2.size
-        scaleFactor = 200/height
-        self.scaledSheep2 = self.scaleImage(self.sheep2,scaleFactor)
-
-        self.button = self.loadImage('images/button.png')
-        width, height = self.button.size
-        scaleFactor = self.rowHeight/height
-        self.scaledButton = self.scaleImage(self.button,scaleFactor)
-
-        self.arrow = self.loadImage('images/arrow.jpg')
-        width, height = self.arrow.size
-        scaleFactor = self.colWidth/width
-        self.scaledArrow = self.scaleImage(self.arrow,scaleFactor)
-
-        for imagePath in self.blackSheepImagePaths:
-            self.tempImage = self.loadImage(imagePath)
-            width, height = self.tempImage.size
-            scaleFactor = self.rowHeight/height
-            self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
-            self.loadedBlackImages.append(self.scaledImage)
-
-
-            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
-            width_t, height_t = self.transposedImage.size
-            scaleFactor = self.colWidth/width_t
-            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
-            self.loadedTransposedBlackImages.append(self.scaledImage)
-
-        for imagePath in self.whiteSheepImagePaths:
-            self.tempImage = self.loadImage(imagePath)
-            width, height = self.tempImage.size
-            scaleFactor = self.rowHeight/height
-            self.scaledImage = self.scaleImage(self.tempImage,scaleFactor)
-            self.loadedWhiteImages.append(self.scaledImage)
-
-
-            self.transposedImage = self.tempImage.transpose(Image.ROTATE_270)
-            width_t, height_t = self.transposedImage.size
-            scaleFactor = self.colWidth/width_t
-            self.scaledImage = self.scaleImage(self.transposedImage,scaleFactor)
-            self.loadedTransposedWhiteImages.append(self.scaledImage)
+        self.activeBlackSheep = []
+        self.activeWhiteSheep = []
 
         self.nextBlackSheep = []
         self.nextWhiteSheep = []
 
-        self.activeBlackSheep = []
-        self.activeWhiteSheep = []
-
-        self.vertButtonPositions = []
-        self.horizButtonPositions = []
-        self.createButtons()
-        
         self.blackPlayer = Player()
         self.whitePlayer = Player()
 
@@ -158,12 +187,7 @@ class MyApp(App):
         self.blackTimePassed = 0
         self.whiteTimePassed = 0
 
-        self.pointsToWin = 15
-        self.AImode = False
-        self.disappearMode = False
-        self.setupComplete = False
         self.gameStarted = False
-
         self.colCounter = 0
 
     def getCellBounds(self,row,col):
@@ -172,6 +196,7 @@ class MyApp(App):
         x2, y2 = x1 + self.colWidth, y1 + self.rowHeight
         return x1, y1, x2, y2 
 
+    #buttons for sending sheep
     def createButtons(self):
 
         for row in range(self.rows):
@@ -215,6 +240,14 @@ class MyApp(App):
 
         return cy
 
+    def getColCx(self,col):
+
+        index = col*2+1
+        x1,y1,x2,y2 = self.horizButtonPositions[index]
+        cx = (x1+x2)/2
+
+        return cx
+
     def keyPressed(self,event):
 
         if event.key == 'p' and self.gameStarted:
@@ -225,25 +258,23 @@ class MyApp(App):
                 self.blackTimePassed += (time.time() - self.pausedTime)
                 self.whiteTimePassed += (time.time() - self.pausedTime)
 
-        #ready
+        #complete setup and enter game
+        elif event.key == 's' and not self.setupComplete and self.play:
+            self.setupComplete = True
+
+        #ready (only after setup is complete)
         elif event.key == 'r' and not self.gameStarted and self.setupComplete:
             self.gameStarted = True
 
-        #restart
-        elif event.key == 'r':
+        #restart (only after game has started)
+        elif event.key == 'r' and self.setupComplete:
+            self.initialize()
+
+        #quit and return to start page
+        elif event.key == 'q':
             self.appStarted()
 
-        elif event.key == 'a' and not self.setupComplete:
-            self.AImode = not self.AImode
-            print('AI activated')
-
-        elif event.key == 'd' and not self.setupComplete:
-            self.disappearMode = not self.disappearMode
-            print('Disappear mode activated')
-
-        elif event.key == 's' and not self.setupComplete:
-            self.setupComplete = True
-
+        #control column for sending black sheep
         elif event.key == 'Right':
             if self.colCounter < 11:
                 self.colCounter += 1
@@ -252,6 +283,7 @@ class MyApp(App):
             if self.colCounter > 0:
                 self.colCounter -= 1
 
+        #send black sheep on column with arrow
         elif event.key == 'Space' and self.gameStarted:
 
             self.checkSheepReady()
@@ -260,7 +292,6 @@ class MyApp(App):
                 colToSend = self.colCounter
                 
                 size = self.nextBlackSheep.pop(0)
-
                 image = self.loadedTransposedBlackImages[size-1]
                 width, height = image.size
 
@@ -272,6 +303,7 @@ class MyApp(App):
                 self.blackCurrTime = time.time()
                 self.blacktimePassed = 0
 
+        #send black sheep on row based on number on keyboard clicked
         elif self.gameStarted:
 
             try:
@@ -301,13 +333,27 @@ class MyApp(App):
             except:
                 print(f'Press a number from 1 to {self.rows}')
             
-
+    #start page: go to splash page when play button clicked
+    #splash page: toggling of AI/disappear modes
+    #game page: sending sheep when buttons clicked
     def mousePressed(self,event):
-        
-        if (not self.blackPlayer.win and not self.whitePlayer.win 
-        and not self.paused and self.gameStarted):
 
-            x,y = event.x,event.y
+        x,y = event.x,event.y
+
+        if self.distance(x,y,self.width/2,self.height-90) <= 75:
+
+            self.play = True
+
+        elif self.play and not self.setupComplete:
+
+            if self.distance(x,y,self.width/2-35,335) <= 35:
+                self.disappearMode = not self.disappearMode
+
+            elif self.distance(x,y,self.width/2+115,335) <= 35:
+                self.AImode = not self.AImode
+        
+        elif (not self.blackPlayer.win and not self.whitePlayer.win 
+        and not self.paused and self.gameStarted):
             
             for i in range(len(self.vertButtonPositions)):
                 
@@ -322,7 +368,7 @@ class MyApp(App):
 
                     if i % 2 == 0 and self.blackSheepReady:
                         size = self.nextBlackSheep.pop(0)
-
+                        print(size)
                         image = self.loadedBlackImages[size-1]
                         width, height = image.size
 
@@ -333,7 +379,7 @@ class MyApp(App):
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
-
+                        print(size)
                         image = self.loadedWhiteImages[size-1]
                         width, height = image.size
 
@@ -355,7 +401,7 @@ class MyApp(App):
 
                     if i % 2 == 0 and self.blackSheepReady:
                         size = self.nextBlackSheep.pop(0)
-
+                        print(size)
                         image = self.loadedTransposedBlackImages[size-1]
                         width, height = image.size
 
@@ -366,7 +412,7 @@ class MyApp(App):
 
                     elif i % 2 == 1 and self.whiteSheepReady:
                         size = self.nextWhiteSheep.pop(0)
-
+                        print(size)
                         image = self.loadedTransposedWhiteImages[size-1]
                         width, height = image.size
 
@@ -375,7 +421,7 @@ class MyApp(App):
                         self.whiteCurrTime = time.time()
                         self.whiteTimePassed = 0
 
-
+    #check cooldown timer - allows sheep to be sent if ready
     def checkSheepReady(self):
 
         if self.blackCurrTime == None or (self.blackCurrTime + self.blackTimePassed + 3) <= time.time():
@@ -405,14 +451,7 @@ class MyApp(App):
 
             AI(self)
 
-    def getColCx(self,col):
-
-        index = col*2+1
-        x1,y1,x2,y2 = self.horizButtonPositions[index]
-        cx = (x1+x2)/2
-
-        return cx
-
+    #when sheep reach either side of the board, remove them and add points respectively
     def addPoints(self):
 
         for blackSheep in self.activeBlackSheep:
@@ -448,7 +487,7 @@ class MyApp(App):
                             for whiteSheep in bump.collidingSheep:
                                 whiteSheep.collided = False
             
-            elif blackSheep.y + blackSheep.height/2 >= (self.width - self.bottomMargin) and blackSheep.col != None:
+            elif blackSheep.y + blackSheep.height/2 >= (self.height - self.bottomMargin) and blackSheep.col != None:
 
                     self.activeBlackSheep.remove(blackSheep)
                     self.blackPlayer.score += blackSheep.points
@@ -545,13 +584,15 @@ class MyApp(App):
                             for blackSheep in bump.collidingSheep:
                                 blackSheep.collided = False
 
-
+    #check for collisions: row-row, col-col, row-col
+    #between different colored sheep, same color sheep (when supporting)
     def checkCollision(self):
 
         for blackSheep in self.activeBlackSheep:
 
             for otherBlackSheep in self.activeBlackSheep:
 
+                #check for collision between black sheep (supporting)
                 if (blackSheep.row == otherBlackSheep.row != None and blackSheep.collided == False and
                     otherBlackSheep.collided == True and blackSheep.x+blackSheep.width/2 >= otherBlackSheep.x-otherBlackSheep.width/2 and blackSheep.x < otherBlackSheep.x):
 
@@ -592,7 +633,7 @@ class MyApp(App):
 
             for whiteSheep in self.activeWhiteSheep:
 
-
+                #check for collision between black and white sheep
                 if (blackSheep.col == whiteSheep.col != None and (whiteSheep.y - blackSheep.y) <= (whiteSheep.height/2+blackSheep.height/2)
                     and blackSheep.collided == False and whiteSheep.collided == False):
                     
@@ -631,28 +672,24 @@ class MyApp(App):
                     row = self.rowObjects[blackSheep.row]
                     row.collisions.append(bump)
 
-                 
-
                 #row-col collision
                 elif (((blackSheep.row == None and whiteSheep.row != None) or (blackSheep.row != None and whiteSheep.row == None))
                 and blackSheep.collided == False and whiteSheep.collided == False):
 
-                    #check for disappear mode
+                    #check for disappear mode, if so make colliding sheep disappear
                     if self.disappearMode:
 
                         if (blackSheep.x - blackSheep.width/2 - whiteSheep.width <= whiteSheep.x - whiteSheep.width/2 <= blackSheep.x + blackSheep.width/2
                         and blackSheep.y - blackSheep.height/2 - whiteSheep.height <= whiteSheep.y - whiteSheep.height/2 <= blackSheep.y + blackSheep.height/2):
                             
-                            print('disappear!')
                             self.activeWhiteSheep.remove(whiteSheep)
                             self.activeBlackSheep.remove(blackSheep)
                     
+                    #if not disappear mode, sheep on col defaults to row
                     else:
 
-                        #check for if they collide
                         if (blackSheep.x - blackSheep.width/2 - whiteSheep.width <= whiteSheep.x - whiteSheep.width/2 <= blackSheep.x + blackSheep.width/2
                         and blackSheep.y - blackSheep.height/2 - whiteSheep.height <= whiteSheep.y - whiteSheep.height/2 <= blackSheep.y + blackSheep.height/2):
-                            print("cross collision")
 
                             if whiteSheep.col != None:
                             
@@ -666,6 +703,7 @@ class MyApp(App):
                                 movedBlackSheep = Sheep(blackSheep.size,whiteSheep.x-whiteSheep.width/2-blackSheep.height/2,whiteSheep.y,'black',False,whiteSheep.row,None,blackSheep.width,blackSheep.height)
                                 self.activeBlackSheep.append(movedBlackSheep)
                 
+                #handling multiple collisions on the same row
                 elif (blackSheep.row == whiteSheep.row != None and blackSheep.x - blackSheep.width/2 <= whiteSheep.x + whiteSheep.width/2
                     and blackSheep.collided == True and whiteSheep.collided == True and blackSheep.x > whiteSheep.x):
 
@@ -690,6 +728,7 @@ class MyApp(App):
 
             for otherWhiteSheep in self.activeWhiteSheep:
 
+                #check for collision between white sheep (supporting)
                 if (whiteSheep.row == otherWhiteSheep.row != None and whiteSheep.collided == False and
                     otherWhiteSheep.collided == True and whiteSheep.x-whiteSheep.width/2 <= otherWhiteSheep.x+otherWhiteSheep.width/2 and whiteSheep.x >= otherWhiteSheep.x):
 
@@ -730,22 +769,24 @@ class MyApp(App):
 
                     whiteSheep.collided = True
 
+    #move all sheep on grid depending on individual speeds
     def moveActiveSheep(self):
 
-            for sheep in self.activeBlackSheep:
+        for sheep in self.activeBlackSheep:
 
-                if sheep.transposed:
-                    sheep.y += sheep.speed
-                else:
-                    sheep.x += sheep.speed
+            if sheep.transposed:
+                sheep.y += sheep.speed
+            else:
+                sheep.x += sheep.speed
 
-            for sheep in self.activeWhiteSheep:
+        for sheep in self.activeWhiteSheep:
 
-                if sheep.transposed:
-                    sheep.y -= sheep.speed
-                else:
-                    sheep.x -= sheep.speed
+            if sheep.transposed:
+                sheep.y -= sheep.speed
+            else:
+                sheep.x -= sheep.speed
 
+    #randomly generate next 3 sheep in queue for players
     def generateNextSheep(self):
         
         while len(self.nextBlackSheep) < 3:
@@ -774,13 +815,13 @@ class MyApp(App):
 
         if self.blackPlayer.win:
 
-            canvas.create_text(self.width/2,cy,text='Black wins!!!',font='Arial 24 bold',fill='orange')
-            canvas.create_text(self.width/2,cy2,text='Press "R" to restart',font='Arial 16 bold',fill='orange')
+            canvas.create_text(self.width/2,cy,text='Black wins!!!',font='Helvetica 24 bold',fill='orange')
+            canvas.create_text(self.width/2,cy2,text='Press "R" to restart',font='Helvetica 16 bold',fill='orange')
         
         else:
 
-            canvas.create_text(self.width/2,cy,text='White wins!!!',font='Arial 24 bold',fill='orange')
-            canvas.create_text(self.width/2,cy2,text='Press "R" to restart',font='Arial 16 bold',fill='orange')
+            canvas.create_text(self.width/2,cy,text='White wins!!!',font='Helvetica 24 bold',fill='orange')
+            canvas.create_text(self.width/2,cy2,text='Press "R" to restart',font='Helvetica 16 bold',fill='orange')
 
     def drawButtons(self,canvas):
 
@@ -796,14 +837,17 @@ class MyApp(App):
             photoImage = self.getCachedPhotoImage(image)
             canvas.create_image((x1+x2)/2,(y1+y2)/2,image=photoImage)
 
-    def drawGrid(self,canvas):
-        for row in range(self.rows):
-            for col in range(self.cols):
-                if (row+col)%2 == 0: 
-                    canvas.create_rectangle(MyApp.getCellBounds(self,row,col),fill='#2ade2a')
-                else:
-                    canvas.create_rectangle(MyApp.getCellBounds(self,row,col),fill='#086608')
+    #old grid; phased out with new grassGrid
+    # def drawGrid(self,canvas):
+    #     for row in range(self.rows):
+    #         for col in range(self.cols):
+    #             if (row+col)%2 == 0: 
+    #                 canvas.create_rectangle(MyApp.getCellBounds(self,row,col),fill='#2ade2a')
+    #             else:
+    #                 canvas.create_rectangle(MyApp.getCellBounds(self,row,col),fill='#086608')
 
+
+    #draw next 3 sheep in queue for each player
     def drawNextSheep(self,canvas):
 
         x = 30
@@ -845,13 +889,17 @@ class MyApp(App):
         photoImage = self.getCachedPhotoImage(self.grassGrid)
         canvas.create_image(self.width/2,self.height/2+45,image=photoImage)
 
+        photoBackground = self.getCachedPhotoImage(self.scaledBackground2)
+        canvas.create_image(self.width/2,-self.height/4-13, image=photoBackground)
+        canvas.create_image(self.width/2,self.height+218, image=photoBackground)
+
         buttonCol = self.colCounter*2
         x1,y1,x2,y2 = self.horizButtonPositions[buttonCol]
 
         photoImage = self.getCachedPhotoImage(self.scaledArrow)
         canvas.create_image((x1+x2)/2,(y1+y2)/2-self.rowHeight,image=photoImage)
 
-
+    #draw sheep on grid
     def drawActiveSheep(self,canvas):
 
         for sheep in self.activeBlackSheep:
@@ -882,14 +930,14 @@ class MyApp(App):
 
     def drawScore(self,canvas):
 
-        canvas.create_text(40,10,text=f"Black score: {self.blackPlayer.score}")
-        canvas.create_text(self.width-40,10,text=f"White score: {self.whitePlayer.score}")
-        canvas.create_text(self.width/2,30,text=f"Points to win: {self.pointsToWin}",font='Arial 16 bold')
+        canvas.create_text(50,10,text=f"Black score: {self.blackPlayer.score}",font='Helvetica 10')
+        canvas.create_text(self.width-50,10,text=f"White score: {self.whitePlayer.score}",font='Helvetica 10')
+        canvas.create_text(self.width/2,30,text=f"Points to win: {self.pointsToWin}",font='Helvetica 16 bold')
         if not self.gameStarted:
-            canvas.create_text(self.width/2,80,text="Press 'R' when ready to start!",font='Arial 16 bold')
+            canvas.create_text(self.width/2,75,text="Press 'R' when ready to start!",font='Helvetica 16 bold')
 
+    #CITATION: I obtained code for getCachedPhotoImage from https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#cachingPhotoImages
     def getCachedPhotoImage(self, image):
-        # stores a cached version of the PhotoImage in the PIL/Pillow image
         if ('cachedPhotoImage' not in image.__dict__):
             image.cachedPhotoImage = ImageTk.PhotoImage(image)
         return image.cachedPhotoImage
@@ -915,28 +963,28 @@ class MyApp(App):
                     canvas.create_arc(5,80,40,115,extent=120,start=-270,fill='green')
 
                 elif self.blackCurrTime + self.blackTimePassed + 2 <= self.pausedTime:
-                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
-                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='yellow')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='yellow')
                 
                 elif self.blackCurrTime + self.blackTimePassed + 1 <= self.pausedTime:
-                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='red')
 
                 if self.whiteCurrTime == None:
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=90,fill='green')
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=210,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=90,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=210,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 3 <= self.pausedTime:
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-150,fill='green')
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-270,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-270,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 2 <= self.pausedTime:
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='yellow')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='yellow')
                 
                 elif self.whiteCurrTime + self.whiteTimePassed + 1 <= self.pausedTime:
-                    canvas.create_arc(self.width-45,80,self.width-5,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='red')
 
             else:
 
@@ -952,12 +1000,13 @@ class MyApp(App):
                     canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
                     canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
                     canvas.create_arc(5,80,40,115,extent=120,start=-270,fill='green')
+
                 elif self.blackCurrTime + self.blackTimePassed + 2 <= time.time():
-                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='green')
-                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='yellow')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-150,fill='yellow')
                 
                 elif self.blackCurrTime + self.blackTimePassed + 1 <= time.time():
-                    canvas.create_arc(5,80,40,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(5,80,40,115,extent=120,start=-30,fill='red')
 
                 if self.whiteCurrTime == None:
                     canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
@@ -970,16 +1019,16 @@ class MyApp(App):
                     canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-270,fill='green')
 
                 elif self.whiteCurrTime + self.whiteTimePassed + 2 <= time.time():
-                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='green')
-                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='yellow')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-150,fill='yellow')
                 
                 elif self.whiteCurrTime + self.whiteTimePassed + 1 <= time.time():
-                    canvas.create_arc(self.width-50,80,self.width-10,120,extent=120,start=-30,fill='green')
+                    canvas.create_arc(self.width-40,80,self.width-5,115,extent=120,start=-30,fill='red')
 
     def drawSplash(self,canvas):
-            
-            photoLogo = self.getCachedPhotoImage(self.scaledLogo)
-            canvas.create_image(self.width/2,110, image=photoLogo)
+
+            photoBackground = self.getCachedPhotoImage(self.scaledBackground2)
+            canvas.create_image(self.width/2,self.height/2, image=photoBackground)
 
             photoSheep1 = self.getCachedPhotoImage(self.scaledSheep1)
             canvas.create_image(45,self.height-75, image=photoSheep1)
@@ -987,33 +1036,59 @@ class MyApp(App):
             photoSheep2 = self.getCachedPhotoImage(self.scaledSheep2)
             canvas.create_image(self.width-50,self.height-75, image=photoSheep2)
 
-            centreRow = self.rows//2
+            canvas.create_text(self.width/2,40,text='Game Instructions',font='Helvetica 20 bold')
+            canvas.create_text(self.width/2,80,text="Send sheep and cross your opponent's line to score points!",font='Helvetica 10')
+            canvas.create_text(self.width/2,105,text="Smaller sheep are weaker in collisions but count for more points!",font='Helvetica 10')
 
-            cyn2 = self.getRowCy(centreRow-1) 
-            cyn1 = self.getRowCy(centreRow) 
-            cy = self.getRowCy(centreRow+1) #real centre
-            cy1 = self.getRowCy(centreRow+2)
-            cy2 = self.getRowCy(centreRow+3)
-            cy3 = self.getRowCy(centreRow+4)
-            cy4 = self.getRowCy(centreRow+5)
+            for i in range(len(self.loadedBlackImages)):
+                image = self.getCachedPhotoImage(self.loadedBlackImages[i])
+                canvas.create_image(self.width/2 - 100 + i*50,150, image=image)
 
-            canvas.create_text(self.width/2,cyn2,text="Send sheep and cross your opponent's line to score points!",font='Arial 9 bold')
-            canvas.create_text(self.width/2,cyn1,text="Smaller sheep are weaker in collisions but count for more points!",font='Arial 9 bold')
-            canvas.create_text(self.width/2,cy,text="Once you have activated all the modes you want, press 'S' to start!",font='Arial 9 bold')
-    
-            if self.AImode:
-                canvas.create_text(self.width/2,cy1,text="Press 'A' to activate/deactivate AI mode (activated)",font='Arial 9 bold',fill='blue')
-            else:
-                canvas.create_text(self.width/2,cy1,text="Press 'A' to activate/deactivate AI mode (deactivated)",font='Arial 9 bold',fill='blue')
-            canvas.create_text(self.width/2,cy2,text="Press 'D' to activate/deactivate disappear mode",font='Arial 9 bold',fill='red')
+            canvas.create_line(self.width/2 - 100,180,self.width/2 + 100,180,arrow=tk.LAST)
+            canvas.create_text(self.width/2 - 100,200,text="Smallest",font='Helvetica 10')
+            canvas.create_text(self.width/2 + 100,200,text="Largest",font='Helvetica 10')
+            canvas.create_line(self.width/2 - 100,220,self.width/2 + 100,220,arrow=tk.FIRST)
+            canvas.create_text(self.width/2 - 100,240,text="Most Points (5)",font='Helvetica 10')
+            canvas.create_text(self.width/2 + 100,240,text="Least Points (1)",font='Helvetica 10')
+            
+            canvas.create_text(self.width/2,275,text="Game Modes",font='Helvetica 15 bold')
+            canvas.create_text(self.width/2-120,335,text="Disappear Mode:",font='Helvetica 10')
+            
             if self.disappearMode:
-                canvas.create_text(self.width/2,cy3,text="row-col colliding sheep disappear! (activated)",font='Arial 9 bold',fill='red')
+                canvas.create_oval(self.width/2-70,300,self.width/2,370,fill='red')
+                canvas.create_text(self.width/2-35,335,text="ACTIVATED",font='Helvetica 8 bold',fill='white')
             else:
-                canvas.create_text(self.width/2,cy3,text="row-col colliding sheep disappear! (deactivated)",font='Arial 9 bold',fill='red')
+                canvas.create_oval(self.width/2-70,300,self.width/2,370,fill='blue')
+                canvas.create_text(self.width/2-35,335,text="DEACTIVATED",font='Helvetica 7 bold',fill='white')
+
+            canvas.create_text(self.width/2+52,335,text="AI Mode:",font='Helvetica 10')
+
+            if self.AImode:   
+                canvas.create_oval(self.width/2+80,300,self.width/2+150,370,fill='red')
+                canvas.create_text(self.width/2+115,335,text="ACTIVATED",font='Helvetica 8 bold',fill='white')
+            else:
+                canvas.create_oval(self.width/2+80,300,self.width/2+150,370,fill='blue')
+                canvas.create_text(self.width/2+115,335,text="DEACTIVATED",font='Helvetica 7 bold',fill='white')
+
+            canvas.create_text(self.width/2,410,text="Once ready, press 'S' to start!",font='Helvetica 10 bold')
+
+    def drawStart(self,canvas):
+
+            photoBackground = self.getCachedPhotoImage(self.scaledBackground1)
+            canvas.create_image(self.width/2,3*self.height/4, image=photoBackground)
+
+            photoLogo = self.getCachedPhotoImage(self.scaledLogo)
+            canvas.create_image(self.width/2,self.scaledLogo.size[1]/2, image=photoLogo)
+
+            photoPlayButton = self.getCachedPhotoImage(self.scaledPlayButton)
+            canvas.create_image(self.width/2,self.height-90, image=photoPlayButton)
 
     def redrawAll(self,canvas):
         
-        if not self.setupComplete:
+        if not self.play:
+            self.drawStart(canvas)
+
+        elif not self.setupComplete:
             self.drawSplash(canvas)
         
         else:
